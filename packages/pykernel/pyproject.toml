@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pykernel"
+version = "0.1.0"
+description = "Custom Python kernel for PyIDE"
+requires-python = ">=3.10"
+dependencies = [
+    "websockets>=12.0",
+    "jedi>=0.19.0",
+    "dill>=0.3.8",
+]
+
+[project.optional-dependencies]
+checkpoint = ["dill>=0.3.8"]  # kept for explicit opt-in installs

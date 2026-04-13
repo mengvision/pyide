@@ -1,0 +1,132 @@
+/**
+ * web.css — Browser-specific style overrides for PyIDE Web.
+ *
+ * Imported AFTER the shared global.css / theme.css so these rules take
+ * precedence. Do NOT modify apps/desktop/src/styles/*.
+ */
+
+/* ── Viewport fill ─────────────────────────────────────────────────────────── */
+
+html,
+body,
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Remove Tauri / native window artefacts ────────────────────────────────── */
+
+/* Tauri injects data-tauri-drag-region; hide any residual styling if the
+   component tree happens to include it in the web build. */
+[data-tauri-drag-region] {
+  -webkit-app-region: unset;
+  app-region: unset;
+  user-select: auto;
+}
+
+/* ── Scrollbar styling (WebKit / Blink) ────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg, #2d2d30);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #424242);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #858585);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-bg, #2d2d30);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, #424242) var(--scrollbar-bg, #2d2d30);
+}
+
+/* ── Text selection ────────────────────────────────────────────────────────── */
+
+::selection {
+  background: var(--accent, #3b82f6);
+  color: var(--text-inverse, #fff);
+}
+
+/* ── Focus rings (cross-browser) ───────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--accent, #3b82f6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Responsive breakpoints ────────────────────────────────────────────────── */
+
+/* Tablet: collapse panels when viewport narrows */
+@media (max-width: 1200px) {
+  :root {
+    --sidebar-width: 200px;
+    --right-panel-width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 100%;
+    --right-panel-width: 100%;
+  }
+}
+
+/* ── Print: show only editor content ───────────────────────────────────────── */
+
+@media print {
+  /* Hide navigation chrome */
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  [class*="titleBar"],
+  [class*="TitleBar"],
+  [class*="statusBar"],
+  [class*="StatusBar"],
+  [class*="rightPanel"],
+  [class*="RightPanel"],
+  [class*="resizeHandle"],
+  [class*="ResizeHandle"],
+  .web-responsive-layout__toggle,
+  .web-loading-screen {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Let the editor content flow naturally on paper */
+  [class*="editorZone"],
+  [class*="EditorZone"],
+  [class*="editor"] {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
+/* ── Smooth resize transitions ─────────────────────────────────────────────── */
+
+.web-panel-transition {
+  transition: width 0.2s ease, height 0.2s ease;
+}

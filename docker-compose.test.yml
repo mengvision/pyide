@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: pyide_user
+      POSTGRES_PASSWORD: pyide_password
+      POSTGRES_DB: pyide_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  server:
+    build:
+      context: ../../packages/server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://pyide_user:pyide_password@db:5432/pyide_db
+      SECRET_KEY: test-secret-key-for-phase3
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_ORIGINS: '["http://localhost:1420", "tauri://localhost"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  pgdata:

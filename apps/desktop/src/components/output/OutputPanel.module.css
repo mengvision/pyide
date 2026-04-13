@@ -1,0 +1,99 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 30px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.execCounter {
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--accent);
+  user-select: none;
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.clearBtn {
+  padding: 2px 6px;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.clearBtn:hover {
+  opacity: 1;
+  background: var(--bg-tertiary);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+}
+
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+
+.content::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  user-select: none;
+  opacity: 0.7;
+}
+
+.outputItem {
+  border-bottom: 1px solid var(--border);
+}
+
+.outputItem:last-child {
+  border-bottom: none;
+}

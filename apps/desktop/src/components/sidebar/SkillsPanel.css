@@ -1,0 +1,237 @@
+.skills-panel {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.skills-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.skills-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.clawhub-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.clawhub-open-btn:hover {
+  border-color: var(--accent-color);
+  background: var(--bg-tertiary);
+}
+
+/* Legacy h3 used in older JSX — keep for safety */
+.skills-panel > h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.skill-section {
+  margin-bottom: 24px;
+}
+
+.skill-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.skill-card:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.skill-card.active {
+  border-color: var(--success-color);
+  background: rgba(var(--success-rgb), 0.05);
+}
+
+.skill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.skill-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.uninstall-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.uninstall-btn:hover {
+  border-color: var(--error-color, #e53e3e);
+  color: var(--error-color, #e53e3e);
+  background: rgba(229, 62, 62, 0.06);
+}
+
+.skill-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.skill-source {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.skill-source.clawhub {
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
+  color: var(--accent-color);
+}
+
+.toggle-btn {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.toggle-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.toggle-btn.active {
+  border-color: var(--success-color);
+  background: var(--success-color);
+  color: white;
+}
+
+.skill-description {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.skill-when-to-use {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.skill-hint {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.skill-tools {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+}
+
+.tool-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tool-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.hint {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hint code {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.loading {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,337 @@
+/* ClawHub Marketplace Dialog */
+
+.clawhub-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.clawhub-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.clawhub-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clawhub-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clawhub-logo {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.clawhub-title h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.clawhub-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.clawhub-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ── Search bar ── */
+.clawhub-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.search-icon {
+  font-size: 18px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.clawhub-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.clawhub-search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Body ── */
+.clawhub-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+/* Notice */
+.clawhub-notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  background: rgba(var(--warning-rgb, 230, 160, 30), 0.08);
+  border: 1px solid rgba(var(--warning-rgb, 230, 160, 30), 0.25);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.notice-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.clawhub-notice strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.clawhub-notice p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Empty */
+.clawhub-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 36px;
+  opacity: 0.5;
+}
+
+.clawhub-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.clawhub-empty .empty-hint {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Results list */
+.clawhub-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clawhub-result-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: border-color 0.15s;
+}
+
+.clawhub-result-item:hover {
+  border-color: var(--accent-color);
+}
+
+.result-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.result-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.result-version {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.result-tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
+  color: var(--accent-color);
+}
+
+.result-description {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-footer {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Actions */
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.install-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent-color);
+  color: #fff;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.install-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.install-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.install-btn.retry {
+  background: var(--error-color, #e53e3e);
+}
+
+.install-btn.loading {
+  position: relative;
+}
+
+.install-badge.installed {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success-color);
+  padding: 6px 10px;
+  border: 1px solid var(--success-color);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* ── Footer ── */
+.clawhub-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.clawhub-footer code {
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.clawhub-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.clawhub-link:hover {
+  text-decoration: underline;
+}

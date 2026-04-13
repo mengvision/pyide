@@ -1,0 +1,119 @@
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  height: 35px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.tabBar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.tabBar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabBar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 14px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  min-width: 0;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+
+.tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.tabName {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dirtyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s ease, background 0.1s ease, color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.tab:hover .closeBtn,
+.tab.active .closeBtn {
+  opacity: 1;
+}
+
+.closeBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.addBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}

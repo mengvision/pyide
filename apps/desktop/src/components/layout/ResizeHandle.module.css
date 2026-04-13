@@ -1,0 +1,24 @@
+.resizeHandle {
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 100ms ease;
+  z-index: 10;
+  position: relative;
+}
+
+.resizeHandle:hover,
+.resizeHandle.dragging {
+  background: var(--accent);
+}
+
+.vertical {
+  width: 4px;
+  cursor: col-resize;
+  height: 100%;
+}
+
+.horizontal {
+  height: 4px;
+  cursor: row-resize;
+  width: 100%;
+}

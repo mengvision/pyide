@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pyide
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./packages/server/app:/app/app
+      - pyide_data:/pyide-data
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://user:password@db/pyide
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: your-secret-key-here
+      PYIDE_DATA_DIR: /pyide-data
+    depends_on:
+      - db
+      - redis
+
+  # ---------------------------------------------------------------------------
+  # web — React SPA served by nginx on port 3000
+  # Proxies /api/* and /ws/* to the 'api' service internally.
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      # VITE_API_URL is consumed at BUILD time by Vite; at runtime nginx
+      # proxies /api and /ws directly to the 'api' service (see nginx.conf).
+      - VITE_API_URL=http://localhost:8000
+
+  # ---------------------------------------------------------------------------
+  # nginx — TLS termination + reverse proxy
+  # Bring up after providing certs under ./certs/{cert.pem,key.pem}.
+  # To skip HTTPS during local development, comment out this service.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./packages/server/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    profiles:
+      - https   # only started with: docker compose --profile https up
+
+volumes:
+  postgres_data:
+  pyide_data:

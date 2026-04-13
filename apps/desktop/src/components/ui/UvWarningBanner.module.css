@@ -1,0 +1,65 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--status-warning) 18%, var(--bg-secondary));
+  border-bottom: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  font-size: 13px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.icon {
+  color: var(--status-warning);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.message strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.installBtn {
+  padding: 3px 10px;
+  background: var(--status-warning);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.installBtn:hover {
+  opacity: 0.85;
+}
+
+.dismissBtn {
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  border-radius: 4px;
+  transition: background 100ms ease, color 100ms ease;
+  flex-shrink: 0;
+}
+
+.dismissBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}

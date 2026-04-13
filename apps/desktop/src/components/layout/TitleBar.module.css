@@ -1,0 +1,97 @@
+.titleBar {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.menuList {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  -webkit-app-region: no-drag;
+}
+
+.menuItem {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.menuItem:hover {
+  background: var(--bg-input);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  -webkit-app-region: no-drag;
+}
+
+.kernelStatus {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.kernelDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.kernelDot.connected {
+  background: var(--status-success);
+}
+
+.kernelDot.connecting {
+  background: var(--status-warning);
+  animation: pulse 1s infinite;
+}
+
+.kernelDot.disconnected {
+  background: var(--status-error);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.settingsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.settingsBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}

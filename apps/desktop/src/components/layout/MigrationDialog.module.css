@@ -1,0 +1,237 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  animation: fadeIn 120ms ease;
+}
+
+.dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 520px;
+  max-width: calc(100vw - 48px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: slideIn 140ms ease;
+}
+
+.header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Section ──────────────────────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badgeGreen {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--status-success);
+}
+
+.badgeYellow {
+  background: rgba(234, 179, 8, 0.15);
+  color: var(--status-warning);
+}
+
+.badgeRed {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-error);
+}
+
+.sectionCount {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.varList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.varRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.varName {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-weight: 600;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.varMeta {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.rebuildCode {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 11px;
+  color: var(--status-warning);
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-top: 2px;
+}
+
+/* ── Warning / info ──────────────────────────────────────────── */
+
+.infoBox {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  line-height: 1.6;
+}
+
+.errorBox {
+  font-size: 12px;
+  color: var(--status-error);
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 4px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--status-error);
+}
+
+/* ── Footer buttons ──────────────────────────────────────────── */
+
+.footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btnCancel {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.btnCancel:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btnProceed {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.btnProceed:hover {
+  background: var(--accent-hover);
+}
+
+.btnProceed:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Spinner for "Migrating…" state ─────────────────────────── */
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

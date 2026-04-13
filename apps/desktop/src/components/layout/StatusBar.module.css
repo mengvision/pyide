@@ -1,0 +1,68 @@
+.statusBar {
+  display: flex;
+  align-items: center;
+  height: var(--status-bar-height);
+  background: var(--accent);
+  padding: 0 8px;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: hidden;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  height: 100%;
+  font-size: 12px;
+  color: var(--text-inverse);
+  white-space: nowrap;
+  cursor: default;
+  border-radius: 4px;
+  transition: background 120ms ease;
+}
+
+.section:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot.connected {
+  background: #fff;
+}
+
+.dot.connecting {
+  background: var(--status-warning);
+  animation: pulse 1s infinite;
+}
+
+.dot.disconnected {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dot.executing {
+  background: var(--status-warning);
+  animation: pulse 0.6s infinite;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.uvWarningIcon {
+  color: var(--status-warning);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

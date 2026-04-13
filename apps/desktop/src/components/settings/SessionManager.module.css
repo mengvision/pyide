@@ -1,0 +1,94 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.value {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 340px;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.loggedIn {
+  color: var(--status-success);
+  font-size: 13px;
+}
+
+.loggedOut {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.actions {
+  margin-top: 4px;
+}
+
+.btnLogout {
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
+  border-radius: 4px;
+  color: var(--status-error);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btnLogout:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-error) 20%, transparent);
+  border-color: var(--status-error);
+}
+
+.btnLogout:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.message {
+  font-size: 12px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}

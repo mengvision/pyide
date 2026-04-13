@@ -1,0 +1,290 @@
+/* ── WebFileTree component styles ──────────────────────────────────────────── */
+
+/* Root container */
+.wft-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header */
+.wft-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 10px;
+  border-bottom: 1px solid var(--border-color, #313244);
+  flex-shrink: 0;
+  min-height: 28px;
+}
+
+.wft-root-name {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6c7086);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.wft-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.wft-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: var(--text-muted, #6c7086);
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  padding: 0;
+}
+
+.wft-icon-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #cdd6f4);
+}
+
+.wft-icon-btn--active {
+  color: var(--accent-color, #89b4fa);
+  background: color-mix(in srgb, var(--accent-color, #89b4fa) 12%, transparent);
+}
+
+/* Upload collapsible zone */
+.wft-upload-zone {
+  border-bottom: 1px solid var(--border-color, #313244);
+  flex-shrink: 0;
+}
+
+/* Tree body */
+.wft-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+}
+
+.wft-body::-webkit-scrollbar {
+  width: 4px;
+}
+.wft-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wft-body::-webkit-scrollbar-thumb {
+  background: var(--border-color, #313244);
+  border-radius: 2px;
+}
+
+/* Loading / error / empty rows */
+.wft-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-muted, #6c7086);
+}
+
+.wft-spinner {
+  display: inline-block;
+  animation: wft-spin 1s linear infinite;
+}
+
+@keyframes wft-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.wft-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--color-error, #f38ba8);
+}
+
+.wft-error-dismiss {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  margin-left: auto;
+}
+
+.wft-empty-dir {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-muted, #6c7086);
+  font-style: italic;
+}
+
+/* Empty state (connecting) */
+.wft-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.wft-empty-icon {
+  font-size: 36px;
+  opacity: 0.5;
+}
+
+.wft-empty-text {
+  font-size: 12px;
+  color: var(--text-muted, #6c7086);
+  margin: 0;
+}
+
+/* Tree items */
+.wft-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding-right: 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  color: var(--text-primary, #cdd6f4);
+  font-size: 12.5px;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.wft-item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.wft-item--active {
+  background: var(--accent-bg, rgba(137, 180, 250, 0.15));
+  border-left: 2px solid var(--accent-color, #89b4fa);
+  color: var(--accent-color, #89b4fa);
+}
+
+.wft-arrow {
+  font-size: 9px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--text-muted, #6c7086);
+  line-height: 1;
+}
+
+.wft-arrow-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.wft-icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.wft-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.wft-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 1px 4px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: var(--bg-primary, #181825);
+  color: var(--text-primary, #cdd6f4);
+  border: 1px solid var(--accent-color, #89b4fa);
+  border-radius: 3px;
+  outline: none;
+}
+
+.wft-empty {
+  height: 22px;
+  line-height: 22px;
+  font-size: 11px;
+  color: var(--text-muted, #6c7086);
+  font-style: italic;
+}
+
+/* Context menu */
+.wft-context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border-color, #313244);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wft-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-primary, #cdd6f4);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+
+.wft-menu-item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.wft-menu-item--danger {
+  color: var(--color-error, #f38ba8);
+}
+
+.wft-menu-icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.wft-divider {
+  height: 1px;
+  background: var(--border-color, #313244);
+  margin: 2px 0;
+}

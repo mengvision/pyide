@@ -1,0 +1,77 @@
+.item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding-right: 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  color: var(--text-primary, #cdd6f4);
+  font-size: 12.5px;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.active {
+  background: var(--accent-bg, rgba(137, 180, 250, 0.15));
+  border-left: 2px solid var(--accent-color, #89b4fa);
+  padding-left: calc(var(--item-indent, 8px) - 2px) !important;
+  color: var(--accent-color, #89b4fa);
+}
+
+.arrow {
+  font-size: 9px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--text-muted, #6c7086);
+  line-height: 1;
+}
+
+.arrowSpacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 1px 4px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: var(--bg-primary, #181825);
+  color: var(--text-primary, #cdd6f4);
+  border: 1px solid var(--accent-color, #89b4fa);
+  border-radius: 3px;
+  outline: none;
+}
+
+.empty {
+  height: 22px;
+  line-height: 22px;
+  font-size: 11px;
+  color: var(--text-muted, #6c7086);
+  font-style: italic;
+}

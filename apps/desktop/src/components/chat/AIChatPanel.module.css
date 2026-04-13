@@ -1,0 +1,301 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 34px;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.modelBadge {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+  cursor: default;
+}
+
+.clearBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+
+.clearHistoryBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.clearHistoryBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-error) 15%, transparent);
+  color: var(--status-error);
+}
+
+.clearHistoryBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clearBtn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.clearBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Message list */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scroll-behavior: smooth;
+}
+
+.messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 28px;
+  opacity: 0.6;
+}
+
+.emptyState p {
+  margin: 0;
+}
+
+/* Streaming indicator */
+.streamingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Unconfigured state */
+.unconfigured {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  gap: 8px;
+}
+
+.unconfiguredIcon {
+  font-size: 36px;
+  opacity: 0.5;
+}
+
+.unconfigured p {
+  margin: 0;
+}
+
+.hint {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Mode selector */
+.modeSelector {
+  display: flex;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.modeBtn {
+  background: none;
+  border: none;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.modeBtn:hover:not(.modeBtnActive) {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.modeBtnActive {
+  background: var(--accent);
+  color: #11111b;
+  pointer-events: none;
+}
+
+/* ── Footer: token usage & agent status ───────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 22px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.tokenUsage {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenPlaceholder {
+  opacity: 0.45;
+}
+
+.costBadge {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.agentBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.agentDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.bgAgentLabel {
+  font-size: 11px;
+  opacity: 0.55;
+  flex-shrink: 0;
+  cursor: default;
+}

@@ -1,0 +1,215 @@
+/* ─── Field wrapper ──────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Text / password input ──────────────────────────────────────────── */
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.inputWithToggle {
+  padding-right: 36px;
+}
+
+.eyeButton {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+
+.eyeButton:hover {
+  color: var(--text-primary);
+}
+
+/* ─── Toggle switch ──────────────────────────────────────────────────── */
+.toggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.toggleLabel {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggleInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggleTrack {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-tertiary);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid var(--border);
+}
+
+.toggleInput:checked + .toggleTrack {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  pointer-events: none;
+}
+
+.toggleInput:checked ~ .toggleThumb {
+  transform: translateX(18px);
+}
+
+/* ─── Radio group ────────────────────────────────────────────────────── */
+.radioGroup {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.radioButton {
+  padding: 5px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  outline: none;
+}
+
+.radioButton:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.radioButtonActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 500;
+}
+
+/* ─── Number input ───────────────────────────────────────────────────── */
+.numberWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+}
+
+.numberStepper {
+  width: 28px;
+  height: 32px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  outline: none;
+  line-height: 1;
+}
+
+.numberStepper:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.numberStepper:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.numberStepper:hover:not(:disabled) {
+  background: var(--bg-input);
+}
+
+.numberStepper:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.numberInput {
+  width: 50px;
+  height: 32px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-right: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.numberInput::-webkit-outer-spin-button,
+.numberInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

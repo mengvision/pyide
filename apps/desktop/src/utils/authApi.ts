@@ -27,7 +27,8 @@ export async function authFetch(
 }
 
 /**
- * Attempt to refresh the access token using the HTTP-only refresh cookie.
+ * Attempt to refresh the access token by sending the current token as a
+ * Bearer Authorization header to POST /api/v1/auth/refresh.
  * Saves the new token to platform auth storage and returns it, or null on failure.
  */
 export async function refreshToken(
@@ -35,9 +36,22 @@ export async function refreshToken(
   serverUrl: string,
 ): Promise<string | null> {
   try {
+    let currentToken: string | null = null;
+    try {
+      currentToken = await platform.auth.loadToken();
+    } catch {
+      // proceed without token
+    }
+
+    const headers: Record<string, string> = {};
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
     const response = await fetch(`${serverUrl}/api/v1/auth/refresh`, {
       method: 'POST',
-      credentials: 'include', // include HTTP-only refresh cookie
+      headers,
+      credentials: 'include',
     });
     if (response.ok) {
       const data = await response.json();

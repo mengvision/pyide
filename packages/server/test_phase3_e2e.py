@@ -34,7 +34,7 @@ def test_register_and_login(client: TestClient):
     token = data["access_token"]
 
     # Login
-    response = client.post("/api/v1/auth/login", params={
+    response = client.post("/api/v1/auth/login", json={
         "username": "testuser",
         "password": "securepassword"
     })

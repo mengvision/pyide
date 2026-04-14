@@ -8,7 +8,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # CORS — Tauri dev server + optional production origins
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:1420", "tauri://localhost"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:1420",
+        "tauri://localhost",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "*",  # Allow any LAN IP
+    ]
 
     REDIS_URL: str = "redis://localhost:6379/0"
 

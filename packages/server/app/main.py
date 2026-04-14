@@ -24,6 +24,11 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown hooks."""
     logger.info("PyIDE server starting up")
 
+    # Initialise database tables
+    from .db.session import Base, engine
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables initialised")
+
     # Initialise audit service
     app.state.audit = AuditService(settings.PYIDE_DATA_DIR)
 
@@ -57,10 +62,12 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
+_cors_origins = ["*"] if "*" in settings.ALLOWED_ORIGINS else settings.ALLOWED_ORIGINS
+_cors_credentials = "*" not in settings.ALLOWED_ORIGINS  # credentials not allowed with wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

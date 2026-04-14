@@ -14,6 +14,8 @@ export interface LoginResponse {
 }
 
 export interface RegisterResponse {
+  access_token: string;
+  token_type: string;
   id: number;
   username: string;
   email: string;
@@ -80,17 +82,27 @@ export async function register(
 
 /**
  * POST /api/v1/auth/refresh
- * Uses the HTTP-only refresh cookie to obtain a new access token.
- * Returns null when the refresh cookie is absent or expired.
+ * Sends the current Bearer token in the Authorization header to obtain a
+ * new access token.  Returns null when the token is absent, invalid, or
+ * the server rejects the request.
  */
-export async function refreshToken(serverUrl?: string): Promise<string | null> {
+export async function refreshToken(
+  serverUrl?: string,
+  currentToken?: string | null,
+): Promise<string | null> {
   try {
     const url = serverUrl
       ? `${serverUrl}/api/v1/auth/refresh`
       : `${base()}/api/v1/auth/refresh`;
 
+    const headers: Record<string, string> = {};
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
     const res = await fetch(url, {
       method: 'POST',
+      headers,
       credentials: 'include',
     });
 
@@ -152,7 +164,7 @@ export async function fetchWithAuth(
   if (res.status !== 401) return res;
 
   // Try a silent token refresh
-  const newToken = await refreshToken();
+  const newToken = await refreshToken(undefined, firstToken);
   if (!newToken) return res; // propagate 401 — caller should logout
 
   onRefresh(newToken);

@@ -68,7 +68,7 @@ export function useWebAuth(platform: PlatformService): UseWebAuthReturn {
       const delay = Math.max(0, msUntilExpiry - REFRESH_BEFORE_EXPIRY_MS);
 
       refreshTimerRef.current = setTimeout(async () => {
-        const newToken = await refreshToken();
+        const newToken = await refreshToken(undefined, token);
         if (newToken) {
           // Only persist to storage if the session was originally set to persist.
           if (persistRef.current) {

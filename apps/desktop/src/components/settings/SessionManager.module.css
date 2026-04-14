@@ -92,3 +92,121 @@
   border-radius: 4px;
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
+
+/* URL editing styles */
+.urlEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.urlDisplayRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.urlInput {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.urlInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btnSmall {
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnSmall:hover {
+  background: var(--bg-hover);
+}
+
+.btnEdit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.btnEdit:hover {
+  opacity: 1;
+}
+
+/* Kernel mode styles */
+.modeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.remoteMode {
+  color: var(--status-success);
+  font-weight: 500;
+}
+
+.localMode {
+  color: var(--status-warning);
+  font-weight: 500;
+}
+
+.btnSwitchMode {
+  padding: 4px 12px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnSwitchMode:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Login hint styles */
+.loginHint {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btnLogin {
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.btnLogin:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}

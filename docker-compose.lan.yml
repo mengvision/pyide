@@ -33,11 +33,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port ${API_PORT:-8000}
     volumes:
       - pyide_data:/pyide-data
     ports:
-      - "8000:8000"  # Accessible from LAN
+      - "${API_PORT:-8000}:${API_PORT:-8000}"  # Accessible from LAN
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-pyide_user}:${POSTGRES_PASSWORD:-pyide_secure_password_2024}@db/pyide
       REDIS_URL: redis://redis:6379/0
@@ -64,7 +64,8 @@ services:
     environment:
       # VITE_API_URL is used at BUILD time; at runtime nginx
       # proxies /api and /ws directly to the 'api' service.
-      - VITE_API_URL=http://localhost:8000
+      # Build-time only; at runtime Nginx proxies to api:8000 internally
+      - VITE_API_URL=http://localhost:${API_PORT:-8000}
     networks:
       - pyide-network
     restart: unless-stopped

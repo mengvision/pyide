@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useKernelStore } from '../../stores/kernelStore';
+import { useUiStore } from '../../stores/uiStore';
 import { usePlatform } from '@pyide/platform';
 import styles from './SessionManager.module.css';
 
@@ -18,6 +19,10 @@ interface SessionManagerProps {
 
 export function SessionManager({ onLogout }: SessionManagerProps) {
   const serverUrl = useSettingsStore((s) => s.serverUrl);
+  const setServerUrl = useSettingsStore((s) => s.setServerUrl);
+  const saveSettings = useSettingsStore((s) => s.saveSettings);
+  const kernelMode = useUiStore((s) => s.kernelMode);
+  const setKernelMode = useUiStore((s) => s.setKernelMode);
   const connectionStatus = useKernelStore((s) => s.connectionStatus);
   const platform = usePlatform();
 
@@ -29,6 +34,8 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
+  const [editUrl, setEditUrl] = useState(serverUrl);
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
 
   // Check for a stored token to determine login state
   useEffect(() => {
@@ -59,6 +66,11 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
     return () => { cancelled = true; };
   }, [serverUrl, connectionStatus]);
 
+  // Sync editUrl when serverUrl changes
+  useEffect(() => {
+    setEditUrl(serverUrl);
+  }, [serverUrl]);
+
   async function handleLogout() {
     setIsLoggingOut(true);
     setLogoutMessage(null);
@@ -88,6 +100,33 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
     }
   }
 
+  async function handleSaveUrl() {
+    if (!editUrl || editUrl.trim() === '') {
+      setLogoutMessage('Server URL cannot be empty');
+      return;
+    }
+    
+    // Normalize URL (remove trailing slash)
+    const normalizedUrl = editUrl.replace(/\/$/, '');
+    
+    setServerUrl(normalizedUrl);
+    setIsEditingUrl(false);
+    
+    try {
+      await saveSettings();
+      setLogoutMessage('Server URL updated successfully. Restart kernel to apply.');
+    } catch (err) {
+      setLogoutMessage(
+        `Failed to save: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  function handleSwitchToRemote() {
+    setKernelMode('remote');
+    setLogoutMessage('Switched to remote mode. Starting kernel...');
+  }
+
   const statusColor =
     connectionStatus === 'connected'
       ? 'var(--status-success)'
@@ -97,14 +136,73 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
 
   return (
     <div className={styles.container}>
-      {/* Connection status row */}
+      {/* Server URL configuration */}
       <div className={styles.infoRow}>
-        <span className={styles.label}>Server</span>
-        <span className={styles.value} title={serverUrl}>
-          {serverUrl || '—'}
-        </span>
+        <span className={styles.label}>Server URL</span>
+        {isEditingUrl ? (
+          <div className={styles.urlEditRow}>
+            <input
+              type="text"
+              className={styles.urlInput}
+              value={editUrl}
+              onChange={(e) => setEditUrl(e.target.value)}
+              placeholder="http://your-server:8000"
+            />
+            <button
+              className={styles.btnSmall}
+              onClick={handleSaveUrl}
+            >
+              Save
+            </button>
+            <button
+              className={styles.btnSmall}
+              onClick={() => {
+                setEditUrl(serverUrl);
+                setIsEditingUrl(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className={styles.urlDisplayRow}>
+            <span className={styles.value} title={serverUrl}>
+              {serverUrl || '—'}
+            </span>
+            <button
+              className={styles.btnEdit}
+              onClick={() => setIsEditingUrl(true)}
+              title="Edit server URL"
+            >
+              ✏️
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Kernel mode */}
+      <div className={styles.infoRow}>
+        <span className={styles.label}>Kernel Mode</span>
+        <div className={styles.modeRow}>
+          <span className={styles.value}>
+            {kernelMode === 'remote' ? (
+              <span className={styles.remoteMode}>Remote</span>
+            ) : (
+              <span className={styles.localMode}>Local</span>
+            )}
+          </span>
+          {kernelMode === 'local' && (
+            <button
+              className={styles.btnSwitchMode}
+              onClick={handleSwitchToRemote}
+            >
+              Switch to Remote
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Connection status row */}
       <div className={styles.infoRow}>
         <span className={styles.label}>Status</span>
         <span className={styles.statusBadge} style={{ color: statusColor }}>
@@ -141,9 +239,31 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
           >
             {isLoggingOut ? 'Logging out…' : 'Logout'}
           </button>
+        ) : kernelMode === 'remote' ? (
+          <div className={styles.loginHint}>
+            <p className={styles.hint}>
+              🔐 To authenticate, please restart the kernel. You will be prompted to enter your username and password.
+            </p>
+            <button
+              className={styles.btnLogin}
+              onClick={async () => {
+                // Stop current kernel and restart to trigger login
+                try {
+                  const { useKernelStore } = await import('../../stores/kernelStore');
+                  const { setConnectionStatus } = useKernelStore.getState();
+                  setConnectionStatus('disconnected');
+                  setLogoutMessage('Please use the main interface to start the kernel and login.');
+                } catch (err) {
+                  console.error('Failed to reset kernel status:', err);
+                }
+              }}
+            >
+              Reset Connection
+            </button>
+          </div>
         ) : (
           <p className={styles.hint}>
-            Use remote mode and log in via the kernel connection to start a session.
+            Switch to remote mode and start the kernel to authenticate.
           </p>
         )}
       </div>
@@ -152,7 +272,7 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
         <p
           className={styles.message}
           style={{
-            color: logoutMessage.startsWith('Logout failed')
+            color: logoutMessage.startsWith('Failed') || logoutMessage.startsWith('Logout failed')
               ? 'var(--status-error)'
               : 'var(--status-success)',
           }}

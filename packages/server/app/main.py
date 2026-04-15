@@ -62,12 +62,22 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-_cors_origins = ["*"] if "*" in settings.ALLOWED_ORIGINS else settings.ALLOWED_ORIGINS
-_cors_credentials = "*" not in settings.ALLOWED_ORIGINS  # credentials not allowed with wildcard
+_cors_origins = [
+    "http://localhost:1420",
+    "http://localhost:1421",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://172.17.10.162:3000",
+    "http://172.17.10.162:8001",
+    "tauri://localhost",
+    "https://tauri.localhost",
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=_cors_credentials,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -167,6 +177,7 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 async def ws_kernel(
     websocket: WebSocket,
     token: Optional[str] = Query(default=None),
+    session: Optional[str] = Query(default=None),
 ):
     """WebSocket proxy: client <-> server <-> user's PyKernel subprocess.
 
@@ -174,7 +185,20 @@ async def ws_kernel(
     The server creates (or reuses) the user's kernel and forwards all
     messages bidirectionally.
     """
-    await kernel_websocket_endpoint(websocket, token=token)
+    auth_token = token or session
+    await kernel_websocket_endpoint(websocket, token=auth_token)
+
+
+# Backward-compatible alias so older frontends using /kernel/ws still work
+@app.websocket("/kernel/ws")
+async def ws_kernel_compat(
+    websocket: WebSocket,
+    token: Optional[str] = Query(default=None),
+    session: Optional[str] = Query(default=None),
+):
+    """Compatibility alias for /ws/kernel (legacy path)."""
+    auth_token = token or session
+    await kernel_websocket_endpoint(websocket, token=auth_token)
 
 
 # ---------------------------------------------------------------------------

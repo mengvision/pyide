@@ -1,12 +1,14 @@
 """Kernel management REST API endpoints."""
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..db.session import get_db
 from ..db.models import User
-from ..core.security import get_current_user
+from ..core.security import create_access_token, get_current_user
 from ..core.kernel_manager import kernel_manager
 
 router = APIRouter()
@@ -85,6 +87,26 @@ async def create_kernel(
         ws_url="/ws/kernel",   # client connects through the server proxy
         alive=kp.is_alive,
     )
+
+
+@router.post(
+    "/{kernel_id}/ws-token",
+    summary="Exchange JWT for a short-lived WebSocket session token",
+)
+async def get_ws_token(
+    kernel_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Exchange the current JWT for a short-lived WebSocket session token."""
+    ws_token = create_access_token(
+        data={
+            "sub": current_user.username,
+            "type": "websocket",
+            "kernel_id": kernel_id,
+        },
+        expires_delta=timedelta(minutes=5),
+    )
+    return {"ws_token": ws_token}
 
 
 @router.delete(

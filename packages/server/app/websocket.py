@@ -38,16 +38,25 @@ async def kernel_websocket_endpoint(websocket: WebSocket, token: Optional[str] =
     The server authenticates the token, starts (or reuses) the user's
     PyKernel subprocess, and forwards messages in both directions.
     """
+    client_host = websocket.client.host if websocket.client else "unknown"
+    if not token:
+        auth_header = websocket.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
     db: Session = SessionLocal()
     try:
         # --- Authenticate before accepting --------------------------------
         try:
             user = await validate_ws_token(token, db)
-        except Exception:
+        except Exception as auth_exc:
+            logger.warning(
+                "WebSocket auth failed from %s: %s", client_host, auth_exc
+            )
             await websocket.close(code=CLOSE_POLICY_VIOLATION)
             return
 
         await websocket.accept()
+        logger.info("WebSocket accepted for user %s from %s", user.username, client_host)
 
         # --- Get or create the kernel -------------------------------------
         try:

@@ -218,12 +218,17 @@ class KernelManager:
                 return None
             return kp
 
-    async def get_or_create_kernel(self, user_id: int, username: str) -> KernelProcess:
+    async def get_or_create_kernel(
+        self,
+        user_id: int,
+        username: str,
+        env_template_id: Optional[int] = None,
+    ) -> KernelProcess:
         """Return existing kernel or create a new one."""
         kp = await self.get_kernel(user_id)
         if kp is not None:
             return kp
-        return await self.create_kernel(user_id, username)
+        return await self.create_kernel(user_id, username, env_template_id=env_template_id)
 
     async def destroy_kernel(self, user_id: int) -> None:
         """Terminate and remove a user's kernel."""

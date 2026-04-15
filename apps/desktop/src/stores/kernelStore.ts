@@ -16,6 +16,7 @@ interface KernelState {
   outputs: Record<string, OutputData[]>;
   executionCount: number;
   currentExecutingCellId: string | null;
+  lastExecutedCellId: string | null;
   lastError: LastError | null;
 
   setConnectionStatus: (status: ConnectionStatus) => void;
@@ -26,6 +27,7 @@ interface KernelState {
   clearOutputs: (cellId?: string) => void;
   incrementExecutionCount: () => void;
   setCurrentExecutingCellId: (cellId: string | null) => void;
+  setLastExecutedCellId: (cellId: string | null) => void;
   setLastError: (error: LastError | null) => void;
 }
 
@@ -37,6 +39,7 @@ export const useKernelStore = create<KernelState>((set) => ({
   outputs: {},
   executionCount: 0,
   currentExecutingCellId: null,
+  lastExecutedCellId: null,
   lastError: null,
 
   setConnectionStatus: (status: ConnectionStatus) =>
@@ -73,6 +76,9 @@ export const useKernelStore = create<KernelState>((set) => ({
 
   setCurrentExecutingCellId: (cellId) =>
     set(() => ({ currentExecutingCellId: cellId })),
+
+  setLastExecutedCellId: (cellId) =>
+    set(() => ({ lastExecutedCellId: cellId })),
 
   setLastError: (error) =>
     set(() => ({ lastError: error })),

@@ -158,6 +158,10 @@ export class KernelClient {
     return this.send('complete', { code, cursor_pos: cursorPos });
   }
 
+  kernelInfo(): Promise<{ python_version: string; python_path: string; kernel_version: string }> {
+    return this.send('kernel_info', {});
+  }
+
   disconnect(): void {
     this.destroyed = true;
     if (this.reconnectTimer !== null) {

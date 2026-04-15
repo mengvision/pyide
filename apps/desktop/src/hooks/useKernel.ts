@@ -2,7 +2,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import { usePlatform } from '@pyide/platform';
 import { KernelClient } from '../services/KernelClient';
 import { useKernelStore } from '../stores/kernelStore';
+import { useEditorStore } from '../stores/editorStore';
 import { useUiStore } from '../stores/uiStore';
+import { useEnvStore } from '../stores/envStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { routeStreamMessage } from '../utils/outputRouter';
 import { useRemoteKernel } from './useRemoteKernel';
@@ -34,6 +36,7 @@ function useLocalKernel() {
     setVariables,
     addOutput,
     incrementExecutionCount,
+    setLastExecutedCellId,
     connectionStatus,
   } = useKernelStore();
 
@@ -59,14 +62,32 @@ function useLocalKernel() {
       });
 
       client.setStreamCallback((stream) => {
-        // Prefer cell_id from kernel stream message, fall back to window global, then 'stream'
-        const cellId = stream.cell_id ?? (window as any).__executingCellId ?? 'stream';
+        const cellId =
+          stream.cell_id ??
+          (window as any).__executingCellId ??
+          useKernelStore.getState().lastExecutedCellId ??
+          'stream';
+        console.log('[StreamCallback]', cellId, stream);
         const routed = routeStreamMessage(stream);
         addOutput(cellId, routed);
       });
 
       await client.connect();
       clientRef.current = client;
+
+      // Fetch kernel info (Python version) after successful connection
+      try {
+        const kernelInfo = await client.kernelInfo();
+        if (kernelInfo?.python_version) {
+          useEnvStore.getState().setActiveVenv({
+            name: 'System Python',
+            path: kernelInfo.python_path || '',
+            pythonVersion: kernelInfo.python_version,
+          });
+        }
+      } catch (e) {
+        console.warn('[useLocalKernel] Failed to get kernel info:', e);
+      }
     } catch (err) {
       console.error('[useLocalKernel] Failed to start kernel:', err);
       setConnectionStatus('disconnected');
@@ -83,11 +104,16 @@ function useLocalKernel() {
       }
 
       setExecuting(true);
-      // Expose the current cell id so the stream callback can key outputs
-      if (cellId) (window as any).__executingCellId = cellId;
+      const effectiveCellId = cellId ?? (() => {
+        const { cells, activeFileId, currentCellIndex } = useEditorStore.getState();
+        const cell = cells[currentCellIndex];
+        return cell ? `cell-${activeFileId ?? 'file'}-${currentCellIndex}` : 'stream';
+      })();
+      setLastExecutedCellId(effectiveCellId);
+      (window as any).__executingCellId = effectiveCellId;
 
       try {
-        const result = await clientRef.current.execute(code, cellId);
+        const result = await clientRef.current.execute(code, effectiveCellId);
 
         // Increment execution counter
         incrementExecutionCount();
@@ -106,10 +132,10 @@ function useLocalKernel() {
         throw err;
       } finally {
         setExecuting(false);
-        if (cellId) (window as any).__executingCellId = undefined;
+        (window as any).__executingCellId = undefined;
       }
     },
-    [setExecuting, setVariables, incrementExecutionCount],
+    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId],
   );
 
   // ── Interrupt ─────────────────────────────────────────────────────────────

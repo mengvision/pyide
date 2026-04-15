@@ -11,7 +11,7 @@ import { useGlobalKeyboard } from './hooks/useGlobalKeyboard';
 import { useSaveFile } from './hooks/useSaveFile';
 import { useEnv } from './hooks/useEnv';
 import { KernelProvider } from './contexts/KernelContext';
-import { refreshToken } from './utils/authApi';
+import { refreshToken, authFetch } from './utils/authApi';
 import { usePlatform } from '@pyide/platform';
 import { initSkillPlatform } from './services/SkillService';
 import { mcpClient } from './services/MCPService/client';
@@ -72,22 +72,46 @@ function App() {
     loadSettings();
   }, [loadSettings]);
 
-  // On startup, try to restore a persisted token
+  // On startup, try to restore a persisted token — but validate it first
   useEffect(() => {
     if (kernelMode !== 'remote') return;
     (async () => {
       try {
         const savedToken = await platform.auth.loadToken();
-        if (savedToken) {
-          setToken(savedToken);
+        if (!savedToken) return; // No saved token – stay on login screen
+
+        // Validate the token by calling /api/v1/auth/me
+        try {
+          const meResponse = await authFetch(
+            platform,
+            `${serverUrl}/api/v1/auth/me`,
+          );
+          if (meResponse.ok) {
+            // Token is still valid
+            setToken(savedToken);
+            setIsAuthenticated(true);
+            scheduleTokenRefresh();
+            return;
+          }
+        } catch {
+          // Network error — try refresh below
+        }
+
+        // Token expired or invalid — attempt refresh
+        const newToken = await refreshToken(platform, serverUrl);
+        if (newToken) {
+          setToken(newToken);
           setIsAuthenticated(true);
           scheduleTokenRefresh();
+        } else {
+          // Both validation and refresh failed — clear stale token
+          await platform.auth.clearToken();
         }
       } catch {
         // No saved token – stay on login screen
       }
     })();
-  }, [kernelMode, scheduleTokenRefresh, platform]);
+  }, [kernelMode, scheduleTokenRefresh, platform, serverUrl]);
 
   // Check uv availability on mount
   useEffect(() => {
@@ -128,7 +152,12 @@ function App() {
   // Only require authentication for remote kernel mode
   // Local mode (Phase 1) works standalone without a server
   if (kernelMode === 'remote' && !isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <Login
+        onLoginSuccess={handleLoginSuccess}
+        onBackToLocal={() => useUiStore.getState().setKernelMode('local')}
+      />
+    );
   }
 
   return (

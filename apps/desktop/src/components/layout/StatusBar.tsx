@@ -5,6 +5,8 @@ import { useChatStore } from '../../stores/chatStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useKernel } from '../../hooks/useKernel';
 import { EnvSelector } from '../statusbar/EnvSelector';
+import { RemoteEnvSelector } from '../statusbar/RemoteEnvSelector';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { MigrationDialog } from './MigrationDialog';
 import {
   analyzeNamespace,
@@ -32,6 +34,8 @@ export function StatusBar() {
   const sessionCost = useChatStore((s) => s.sessionCost);
   const kernelMode = useUiStore((s) => s.kernelMode);
   const setKernelMode = useUiStore((s) => s.setKernelMode);
+  const workspacePath = useUiStore((s) => s.workspacePath);
+  const serverUrl = useSettingsStore((s) => s.serverUrl);
 
   // The active kernel hook exposes both modes (Rules of Hooks); we use it to
   // call inspectAll on the *current* mode and executeCode on the *destination*.
@@ -193,7 +197,11 @@ export function StatusBar() {
         </div>
 
         {/* Environment selector */}
-        <EnvSelector />
+        {kernelMode === 'remote' ? (
+          <RemoteEnvSelector serverUrl={serverUrl} />
+        ) : (
+          <EnvSelector projectPath={workspacePath || undefined} />
+        )}
 
         {/* uv not installed warning icon */}
         {!uvInstalled && (

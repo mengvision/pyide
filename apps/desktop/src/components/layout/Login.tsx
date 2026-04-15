@@ -5,9 +5,10 @@ import './Login.css';
 
 interface LoginProps {
   onLoginSuccess: (token: string) => void;
+  onBackToLocal?: () => void;
 }
 
-export function Login({ onLoginSuccess }: LoginProps) {
+export function Login({ onLoginSuccess, onBackToLocal }: LoginProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -116,6 +117,18 @@ export function Login({ onLoginSuccess }: LoginProps) {
             {isLogin ? 'Register' : 'Login'}
           </span>
         </p>
+
+        {onBackToLocal && (
+          <div className="back-to-local">
+            <button
+              type="button"
+              className="back-to-local-btn"
+              onClick={onBackToLocal}
+            >
+              ← 返回本地模式 / Switch to Local Mode
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

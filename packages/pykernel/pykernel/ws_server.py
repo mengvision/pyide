@@ -170,6 +170,7 @@ class WebSocketServer:
             "checkpoint_restore": self._handle_checkpoint_restore,
             "checkpoint_list": self._handle_checkpoint_list,
             "checkpoint_snapshot": self._handle_checkpoint_snapshot,
+            "kernel_info": self._handle_kernel_info,
         }
 
         handler = handlers.get(method)
@@ -377,6 +378,22 @@ class WebSocketServer:
             except Exception:
                 pass
         return {"checkpoints": checkpoints}
+
+    async def _handle_kernel_info(
+        self, params: dict, ws: websockets.server.WebSocketServerProtocol
+    ) -> dict:
+        """Handle a ``kernel_info`` request.
+
+        Returns::
+
+            { "python_version": "Python 3.x.y", "python_path": "...", "kernel_version": "1.0.0" }
+        """
+        import sys
+        return {
+            "python_version": f"Python {sys.version.split()[0]}",
+            "python_path": sys.executable,
+            "kernel_version": "1.0.0",
+        }
 
     async def _handle_checkpoint_snapshot(
         self, params: dict, ws: websockets.server.WebSocketServerProtocol

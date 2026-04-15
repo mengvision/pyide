@@ -86,7 +86,7 @@ export function SessionManager({ onLogout }: SessionManagerProps) {
       }
 
       // Clear the stored token
-      await platform.auth.saveToken('');
+      await platform.auth.clearToken();
 
       setSessionInfo((prev) => ({ ...prev, isLoggedIn: false, username: null }));
       setLogoutMessage('Logged out successfully.');

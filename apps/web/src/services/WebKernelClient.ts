@@ -12,8 +12,8 @@
  *     Response: { id, result? | error?: { code, message } }
  *
  * Auth: A short-lived, opaque WebSocket session token (`wsToken`) is passed
- * as `?session=<wsToken>` in the URL.  The caller must obtain this token via
- * POST /api/kernel/:id/ws-token before connecting (and again before every
+ * as `?token=<wsToken>` in the URL.  The caller must obtain this token via
+ * POST /api/v1/kernels/:id/ws-token before connecting (and again before every
  * reconnect, because the token is single-use / short-lived).
  */
 
@@ -45,7 +45,7 @@ export class WebKernelClient {
   private ws: WebSocket | null = null;
   private serverUrl: string = '';
   private kernelId: string = '';
-  /** Short-lived opaque session token used in the WebSocket URL (?session=). */
+  /** Short-lived opaque session token used in the WebSocket URL (?token=). */
   private wsToken: string = '';
   /** Callback that the caller provides to fetch a fresh ws_token before each reconnect. */
   private fetchWsToken: (() => Promise<string>) | null = null;
@@ -84,8 +84,8 @@ export class WebKernelClient {
    * Establish a WebSocket connection to the kernel.
    *
    * @param serverUrl    HTTP(S) base URL of the server, e.g. 'http://localhost:8000'
-   * @param kernelId     Kernel identifier returned by /api/kernel/start
-   * @param wsToken      Short-lived opaque session token (from POST /api/kernel/:id/ws-token)
+   * @param kernelId     Kernel identifier returned by /api/v1/kernels/create
+   * @param wsToken      Short-lived opaque session token (from POST /api/v1/kernels/:id/ws-token)
    * @param fetchWsToken Callback to obtain a fresh ws_token for each reconnect attempt
    */
   connect(
@@ -168,8 +168,8 @@ export class WebKernelClient {
   private _buildWsUrl(): string {
     // Convert http → ws, https → wss
     const wsBase = this.serverUrl.replace(/^http/, 'ws').replace(/\/$/, '');
-    const url = `${wsBase}/ws/kernel/${encodeURIComponent(this.kernelId)}`;
-    return this.wsToken ? `${url}?session=${encodeURIComponent(this.wsToken)}` : url;
+    const url = `${wsBase}/ws/kernel`;
+    return this.wsToken ? `${url}?token=${encodeURIComponent(this.wsToken)}` : url;
   }
 
   private _openSocket(): Promise<void> {

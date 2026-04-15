@@ -37,14 +37,14 @@ services:
     volumes:
       - pyide_data:/pyide-data
     ports:
-      - "${API_PORT:-8000}:${API_PORT:-8000}"  # Accessible from LAN
+      - "8001:8001"  # Accessible from LAN
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-pyide_user}:${POSTGRES_PASSWORD:-pyide_secure_password_2024}@db/pyide
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
       PYIDE_DATA_DIR: /pyide-data
       # Allow access from LAN IPs
-      ALLOWED_ORIGINS: '["http://localhost:3000", "http://127.0.0.1:3000", "http://0.0.0.0:3000"]'
+      ALLOWED_ORIGINS: '["http://localhost:3000", "http://127.0.0.1:3000", "http://0.0.0.0:3000", "http://172.17.10.162:3000", "http://172.17.10.162:8001"]'
     depends_on:
       - db
       - redis

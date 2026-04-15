@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { usePlatform } from '@pyide/platform';
 import { useKernelStore } from '../stores/kernelStore';
+import { useEditorStore } from '../stores/editorStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { routeStreamMessage } from '../utils/outputRouter';
 import type { VariableInfo } from '@pyide/protocol/kernel';
@@ -29,9 +30,13 @@ class RemoteKernelClient {
   private _status: ConnectionStatus = 'disconnected';
   private destroyed = false;
   private wsUrl: string;
+  private wsUrlBuilder: (() => Promise<string>) | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
 
-  constructor(wsUrl: string) {
+  constructor(wsUrl: string, wsUrlBuilder?: () => Promise<string>) {
     this.wsUrl = wsUrl;
+    this.wsUrlBuilder = wsUrlBuilder ?? null;
   }
 
   get status(): ConnectionStatus {
@@ -60,6 +65,7 @@ class RemoteKernelClient {
 
       this.ws.onopen = () => {
         this._setStatus('connected');
+        this.reconnectAttempts = 0; // Reset on successful connection
         resolve();
       };
 
@@ -120,12 +126,27 @@ class RemoteKernelClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer !== null || this.destroyed) return;
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectAttempts++;
+    if (this.reconnectAttempts > this.maxReconnectAttempts) {
+      console.warn('[RemoteKernelClient] Max reconnect attempts reached, giving up');
+      return;
+    }
+    // Exponential backoff: 3s, 6s, 12s, ... capped at 30s
+    const delay = Math.min(3000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+    console.log(`[RemoteKernelClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
-      if (!this.destroyed) {
-        this.connect().catch(() => {/* silently retry */});
+      if (this.destroyed) return;
+      // Refresh token on reconnect to avoid stale token issues
+      if (this.wsUrlBuilder) {
+        try {
+          this.wsUrl = await this.wsUrlBuilder();
+        } catch {
+          console.warn('[RemoteKernelClient] Failed to refresh WS URL, using existing');
+        }
       }
-    }, 3000);
+      this.connect().catch(() => {/* silently retry */});
+    }, delay);
   }
 
   async send(method: string, params: Record<string, unknown> = {}): Promise<any> {
@@ -193,7 +214,7 @@ class RemoteKernelClient {
  * all kernel operations through a remote server WebSocket endpoint.
  *
  * WebSocket URL format:
- *   wss://<serverHost>/kernel/ws?token=<jwt>
+ *   wss://<serverHost>/ws/kernel?token=<jwt>
  *
  * The JWT is loaded from Tauri's secure storage (same mechanism used by
  * authFetch). Token is appended as a query param so the server can authenticate
@@ -215,6 +236,7 @@ export function useRemoteKernel() {
     setVariables,
     addOutput,
     incrementExecutionCount,
+    setLastExecutedCellId,
     connectionStatus,
   } = useKernelStore();
 
@@ -225,7 +247,7 @@ export function useRemoteKernel() {
       const token = await platform.auth.loadToken();
       if (!token) return;
       
-      const templates = await listEnvironmentTemplates(serverUrl, token);
+      const templates = await listEnvironmentTemplates(serverUrl, token, platform);
       setAvailableTemplates(templates);
     } catch (err) {
       console.warn('[useRemoteKernel] Failed to load environment templates:', err);
@@ -242,7 +264,7 @@ export function useRemoteKernel() {
   const buildWsUrl = useCallback(async (): Promise<string> => {
     // Convert http(s) to ws(s)
     const wsBase = serverUrl.replace(/^http/, 'ws');
-    const endpoint = `${wsBase}/kernel/ws`;
+    const endpoint = `${wsBase}/ws/kernel`;
 
     let token: string | null = null;
     try {
@@ -272,19 +294,23 @@ export function useRemoteKernel() {
 
       // Start kernel with selected environment template
       const { startKernelWithTemplate } = await import('../services/environmentService');
-      await startKernelWithTemplate(serverUrl, token, selectedTemplateId);
+      await startKernelWithTemplate(serverUrl, token, selectedTemplateId, platform);
 
       // Connect via WebSocket
       const wsUrl = await buildWsUrl();
-      const client = new RemoteKernelClient(wsUrl);
+      const client = new RemoteKernelClient(wsUrl, buildWsUrl);
 
       client.setStatusCallback((status) => {
         setConnectionStatus(status);
       });
 
       client.setStreamCallback((stream) => {
-        // Prefer cell_id from kernel stream message, fall back to window global, then 'stream'
-        const cellId = stream.cell_id ?? (window as any).__executingCellId ?? 'stream';
+        const cellId =
+          stream.cell_id ??
+          (window as any).__executingCellId ??
+          useKernelStore.getState().lastExecutedCellId ??
+          'stream';
+        console.log('[StreamCallback]', cellId, stream);
         const routed = routeStreamMessage(stream);
         addOutput(cellId, routed);
       });
@@ -336,10 +362,16 @@ export function useRemoteKernel() {
       }
 
       setExecuting(true);
-      if (cellId) (window as any).__executingCellId = cellId;
+      const effectiveCellId = cellId ?? (() => {
+        const { cells, activeFileId, currentCellIndex } = useEditorStore.getState();
+        const cell = cells[currentCellIndex];
+        return cell ? `cell-${activeFileId ?? 'file'}-${currentCellIndex}` : 'stream';
+      })();
+      setLastExecutedCellId(effectiveCellId);
+      (window as any).__executingCellId = effectiveCellId;
 
       try {
-        const result = await clientRef.current.execute(code, cellId);
+        const result = await clientRef.current.execute(code, effectiveCellId);
         incrementExecutionCount();
 
         try {
@@ -355,10 +387,10 @@ export function useRemoteKernel() {
         throw err;
       } finally {
         setExecuting(false);
-        if (cellId) (window as any).__executingCellId = undefined;
+        (window as any).__executingCellId = undefined;
       }
     },
-    [setExecuting, setVariables, incrementExecutionCount],
+    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId],
   );
 
   // ── Interrupt ────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useEnvStore } from './envStore';
 
 type LeftPanel = 'files' | 'skills' | 'mcp' | 'memory';
 type RightTab = 'variables' | 'plots' | 'chat' | 'environment';
@@ -72,5 +73,9 @@ export const useUiStore = create<UiState>((set) => ({
 
   closeSettings: () => set(() => ({ isSettingsOpen: false })),
 
-  setKernelMode: (mode) => set(() => ({ kernelMode: mode })),
+  setKernelMode: (mode) => {
+    set(() => ({ kernelMode: mode }));
+    // 切换模式时清空环境信息，避免 remote 模式显示 local 的 Python 版本
+    useEnvStore.getState().setActiveVenv(null);
+  },
 }));

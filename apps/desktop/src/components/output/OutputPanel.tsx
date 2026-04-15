@@ -11,16 +11,17 @@ import { ErrorOutput } from './ErrorOutput';
 import styles from './OutputPanel.module.css';
 
 export function OutputPanel() {
-  const { outputs, executionCount, clearOutputs } = useKernelStore();
+  const { outputs, executionCount, clearOutputs, lastExecutedCellId } = useKernelStore();
   const { cells, activeFileId, currentCellIndex } = useEditorStore();
   const { outputPanelHeight, setOutputPanelHeight } = useUiStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Derive the current cell id
+  // 优先显示最近执行的 cell 的输出
   const currentCell = cells[currentCellIndex];
-  const cellId = currentCell
+  const currentCellId = currentCell
     ? `cell-${activeFileId ?? 'file'}-${currentCellIndex}`
     : 'stream';
+  const cellId = lastExecutedCellId ?? currentCellId;
 
   const cellOutputs: OutputData[] = outputs[cellId] ?? [];
 

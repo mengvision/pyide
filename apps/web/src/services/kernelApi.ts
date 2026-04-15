@@ -4,11 +4,11 @@
  * REST API helpers for kernel lifecycle management.
  * All requests include `Authorization: Bearer <token>`.
  *
- * Endpoints (implemented by the Phase 3 server):
- *   POST /api/kernel/start   → { kernel_id, ws_url }
- *   POST /api/kernel/stop    → 204 No Content
- *   POST /api/kernel/restart → { kernel_id, ws_url }
- *   GET  /api/kernel/status  → { kernel_id, status, uptime_seconds }
+ * Endpoints (implemented by the server):
+ *   POST   /api/v1/kernels/create              → { kernel_id, ws_url }
+ *   DELETE /api/v1/kernels/destroy             → 204 No Content
+ *   GET    /api/v1/kernels/status              → { status, kernel }
+ *   POST   /api/v1/kernels/:kernelId/ws-token  → { ws_token }
  */
 
 // ── Response types ────────────────────────────────────────────────────────────
@@ -76,6 +76,22 @@ async function apiGet<T>(
   return res.json() as Promise<T>;
 }
 
+async function apiDelete(
+  serverUrl: string,
+  path: string,
+  token: string,
+): Promise<void> {
+  const res = await fetch(`${serverUrl}${path}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Kernel API ${res.status} (${path}): ${text}`);
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -86,7 +102,7 @@ export async function startKernel(
   serverUrl: string,
   token: string,
 ): Promise<KernelStartResponse> {
-  return apiPost<KernelStartResponse>(serverUrl, '/api/kernel/start', token);
+  return apiPost<KernelStartResponse>(serverUrl, '/api/v1/kernels/create', token);
 }
 
 /**
@@ -97,7 +113,8 @@ export async function stopKernel(
   token: string,
   kernelId: string,
 ): Promise<void> {
-  return apiPost<void>(serverUrl, '/api/kernel/stop', token, { kernel_id: kernelId });
+  void kernelId;
+  return apiDelete(serverUrl, '/api/v1/kernels/destroy', token);
 }
 
 /**
@@ -108,12 +125,8 @@ export async function restartKernel(
   token: string,
   kernelId: string,
 ): Promise<KernelStartResponse> {
-  return apiPost<KernelStartResponse>(
-    serverUrl,
-    '/api/kernel/restart',
-    token,
-    { kernel_id: kernelId },
-  );
+  await stopKernel(serverUrl, token, kernelId);
+  return startKernel(serverUrl, token);
 }
 
 /**
@@ -124,11 +137,8 @@ export async function getKernelStatus(
   token: string,
   kernelId: string,
 ): Promise<KernelStatusResponse> {
-  return apiGet<KernelStatusResponse>(
-    serverUrl,
-    `/api/kernel/status?kernel_id=${encodeURIComponent(kernelId)}`,
-    token,
-  );
+  void kernelId;
+  return apiGet<KernelStatusResponse>(serverUrl, '/api/v1/kernels/status', token);
 }
 
 /**
@@ -138,7 +148,7 @@ export async function getKernelStatus(
  * be passed safely in the WebSocket URL query string without exposing the raw
  * JWT in server logs or Referer headers.
  *
- * Server endpoint: POST /api/kernel/:kernelId/ws-token
+ * Server endpoint: POST /api/v1/kernels/:kernelId/ws-token
  * Response:        { ws_token: string }
  */
 export async function getWsToken(
@@ -147,7 +157,7 @@ export async function getWsToken(
   kernelId: string,
 ): Promise<string> {
   const base = serverUrl.replace(/\/$/, '');
-  const res = await fetch(`${base}/api/kernel/${encodeURIComponent(kernelId)}/ws-token`, {
+  const res = await fetch(`${base}/api/v1/kernels/${encodeURIComponent(kernelId)}/ws-token`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

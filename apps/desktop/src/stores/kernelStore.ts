@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { VariableInfo, OutputData } from '@pyide/protocol/kernel';
+import type { VariableInfo, OutputData, ReplEntry } from '@pyide/protocol/kernel';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -18,6 +18,8 @@ interface KernelState {
   currentExecutingCellId: string | null;
   lastExecutedCellId: string | null;
   lastError: LastError | null;
+  replHistory: ReplEntry[];
+  inputHistory: string[];
 
   setConnectionStatus: (status: ConnectionStatus) => void;
   setExecuting: (executing: boolean) => void;
@@ -29,6 +31,11 @@ interface KernelState {
   setCurrentExecutingCellId: (cellId: string | null) => void;
   setLastExecutedCellId: (cellId: string | null) => void;
   setLastError: (error: LastError | null) => void;
+  addReplEntry: (entry: ReplEntry) => void;
+  appendReplOutput: (entryId: string, output: OutputData) => void;
+  clearReplHistory: () => void;
+  addInputHistory: (code: string) => void;
+  setReplHistory: (history: ReplEntry[]) => void;
 }
 
 export const useKernelStore = create<KernelState>((set) => ({
@@ -41,6 +48,8 @@ export const useKernelStore = create<KernelState>((set) => ({
   currentExecutingCellId: null,
   lastExecutedCellId: null,
   lastError: null,
+  replHistory: [],
+  inputHistory: [],
 
   setConnectionStatus: (status: ConnectionStatus) =>
     set(() => ({ connectionStatus: status })),
@@ -82,4 +91,27 @@ export const useKernelStore = create<KernelState>((set) => ({
 
   setLastError: (error) =>
     set(() => ({ lastError: error })),
+
+  addReplEntry: (entry) =>
+    set((state) => ({ replHistory: [...state.replHistory, entry] })),
+
+  appendReplOutput: (entryId, output) =>
+    set((state) => ({
+      replHistory: state.replHistory.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, outputs: [...entry.outputs, output] }
+          : entry
+      ),
+    })),
+
+  clearReplHistory: () =>
+    set(() => ({ replHistory: [] })),
+
+  addInputHistory: (code) =>
+    set((state) => ({
+      inputHistory: [...state.inputHistory, code].slice(-500),
+    })),
+
+  setReplHistory: (history) =>
+    set(() => ({ replHistory: history })),
 }));

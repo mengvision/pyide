@@ -1,0 +1,51 @@
+.replInputArea {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.prompt {
+  color: var(--status-success);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  user-select: none;
+  padding-top: 1px;
+  flex-shrink: 0;
+}
+
+.textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  min-height: 20px;
+  max-height: 150px;
+  padding: 0;
+}
+
+.textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  font-size: 14px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}

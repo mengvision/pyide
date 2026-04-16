@@ -26,6 +26,7 @@ function App() {
   const kernelMode = useUiStore((s) => s.kernelMode);
   const { checkUv, refreshVenvs } = useEnv();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const [, setToken] = useState<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,6 +66,7 @@ function App() {
     }
     setToken(null);
     setIsAuthenticated(false);
+    setCheckingAuth(false);
   }, [platform]);
 
   // Load persisted settings on mount
@@ -75,10 +77,16 @@ function App() {
   // On startup, try to restore a persisted token — but validate it first
   useEffect(() => {
     if (kernelMode !== 'remote') return;
+
+    setCheckingAuth(true);
+
     (async () => {
       try {
         const savedToken = await platform.auth.loadToken();
-        if (!savedToken) return; // No saved token – stay on login screen
+        if (!savedToken) {
+          setCheckingAuth(false); // No saved token – show login screen
+          return;
+        }
 
         // Validate the token by calling /api/v1/auth/me
         try {
@@ -91,6 +99,7 @@ function App() {
             setToken(savedToken);
             setIsAuthenticated(true);
             scheduleTokenRefresh();
+            setCheckingAuth(false);
             return;
           }
         } catch {
@@ -109,6 +118,8 @@ function App() {
         }
       } catch {
         // No saved token – stay on login screen
+      } finally {
+        setCheckingAuth(false);
       }
     })();
   }, [kernelMode, scheduleTokenRefresh, platform, serverUrl]);
@@ -148,6 +159,11 @@ function App() {
     setIsAuthenticated(true);
     scheduleTokenRefresh();
   };
+
+  // Show nothing while checking auth (prevents login flash when switching to remote mode)
+  if (kernelMode === 'remote' && checkingAuth) {
+    return null;
+  }
 
   // Only require authentication for remote kernel mode
   // Local mode (Phase 1) works standalone without a server

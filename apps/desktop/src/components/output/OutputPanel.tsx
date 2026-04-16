@@ -1,79 +1,85 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { OutputData } from '@pyide/protocol/kernel';
 import { useKernelStore } from '../../stores/kernelStore';
-import { useEditorStore } from '../../stores/editorStore';
 import { useUiStore } from '../../stores/uiStore';
 import { ResizeHandle } from '../layout/ResizeHandle';
 import { TextOutput } from './TextOutput';
 import { DataFrameOutput } from './DataFrameOutput';
 import { ChartOutput } from './ChartOutput';
 import { ErrorOutput } from './ErrorOutput';
+import { LogOutput } from './LogOutput';
+import { ReplInput } from './ReplInput';
 import styles from './OutputPanel.module.css';
 
 export function OutputPanel() {
-  const { outputs, executionCount, clearOutputs, lastExecutedCellId } = useKernelStore();
-  const { cells, activeFileId, currentCellIndex } = useEditorStore();
+  const { replHistory, executionCount, clearReplHistory } = useKernelStore();
   const { outputPanelHeight, setOutputPanelHeight } = useUiStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 优先显示最近执行的 cell 的输出
-  const currentCell = cells[currentCellIndex];
-  const currentCellId = currentCell
-    ? `cell-${activeFileId ?? 'file'}-${currentCellIndex}`
-    : 'stream';
-  const cellId = lastExecutedCellId ?? currentCellId;
-
-  const cellOutputs: OutputData[] = outputs[cellId] ?? [];
-
-  // Auto-scroll to bottom when new outputs arrive
+  // Auto-scroll to bottom when new entries/outputs arrive
+  const totalOutputs = replHistory.reduce((sum, e) => sum + e.outputs.length, 0);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [cellOutputs.length]);
+  }, [replHistory.length, totalOutputs]);
 
   const handleResize = useCallback(
     (delta: number) => {
-      // Dragging upward (negative delta) increases height
       setOutputPanelHeight(Math.max(80, outputPanelHeight - delta));
     },
     [outputPanelHeight, setOutputPanelHeight],
   );
 
-  const handleClear = useCallback(() => {
-    clearOutputs(cellId);
-  }, [clearOutputs, cellId]);
-
   return (
     <div className={styles.panel} style={{ height: outputPanelHeight }}>
       <ResizeHandle direction="horizontal" onResize={handleResize} />
 
+      {/* Header */}
       <div className={styles.header}>
-        <span className={styles.title}>Output</span>
+        <span className={styles.title}>Console</span>
         {executionCount > 0 && (
-          <span className={styles.execCounter}>Out [{executionCount}]:</span>
+          <span className={styles.execCounter}>[{executionCount}]</span>
         )}
         <div className={styles.headerSpacer} />
         <button
           className={styles.clearBtn}
-          onClick={handleClear}
-          title="Clear output"
+          onClick={clearReplHistory}
+          title="Clear console"
         >
           🗑️
         </button>
       </div>
 
+      {/* REPL history content */}
       <div className={styles.content} ref={scrollRef}>
-        {cellOutputs.length === 0 ? (
-          <div className={styles.emptyState}>Run a cell to see output</div>
+        {replHistory.length === 0 ? (
+          <div className={styles.emptyState}>Type code below or run a cell to get started</div>
         ) : (
-          cellOutputs.map((output, i) => (
-            <div key={i} className={styles.outputItem}>
-              <OutputRenderer output={output} cellCode={currentCell?.code} />
+          replHistory.map((entry) => (
+            <div key={entry.id} className={styles.replEntry}>
+              {/* Input block with prompt */}
+              <div className={styles.inputBlock}>
+                <span className={styles.prompt}>In [{entry.executionCount}]:</span>
+                <pre className={styles.code}>{entry.code}</pre>
+              </div>
+              {/* Output block */}
+              {entry.outputs.length > 0 && (
+                <div className={styles.outputBlock}>
+                  {entry.outputs.map((output, i) => (
+                    <div key={i} className={styles.outputItem}>
+                      <OutputRenderer output={output} cellCode={entry.code} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
+
+      {/* Bottom REPL input */}
+      <ReplInput />
     </div>
   );
 }
@@ -93,6 +99,10 @@ function OutputRenderer({ output, cellCode }: OutputRendererProps) {
       return <ChartOutput data={output.data} />;
     case 'error':
       return <ErrorOutput data={output.data} cellCode={cellCode} />;
+    case 'warning':
+      return <LogOutput data={output.data} level="warning" />;
+    case 'info':
+      return <LogOutput data={output.data} level="info" />;
     default:
       return <TextOutput data={{ text: JSON.stringify(output.data) }} />;
   }

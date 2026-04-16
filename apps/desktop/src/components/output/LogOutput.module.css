@@ -1,0 +1,77 @@
+.container {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 10px;
+  position: relative;
+}
+
+/* Warning 级别 - 黄色左边框 */
+.warning {
+  border-left: 3px solid var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 6%, var(--bg-primary));
+}
+
+/* Info 级别 - 蓝色左边框 */
+.info {
+  border-left: 3px solid #3b82f6;
+  background: color-mix(in srgb, #3b82f6 4%, var(--bg-primary));
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.levelText {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: nowrap;
+}
+
+.warning .levelText {
+  color: var(--status-warning);
+}
+
+.info .levelText {
+  color: #3b82f6;
+}
+
+.text {
+  margin: 0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 1;
+}
+
+.copyBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: var(--text-primary);
+}
+
+.container:hover .copyBtn {
+  opacity: 1;
+}

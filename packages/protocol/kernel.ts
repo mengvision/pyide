@@ -38,7 +38,15 @@ export interface CellInfo {
 }
 
 export interface OutputData {
-  type: 'text' | 'dataframe' | 'chart' | 'error';
+  type: 'text' | 'dataframe' | 'chart' | 'error' | 'warning' | 'info';
   data: any;
   timestamp: number;
+}
+
+export interface ReplEntry {
+  id: string;               // 唯一标识（uuid）
+  code: string;             // 执行的代码
+  outputs: OutputData[];    // 该次执行的所有输出
+  executionCount: number;   // In [n] 编号
+  timestamp: number;        // 执行时间戳
 }

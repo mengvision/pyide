@@ -1,23 +1,49 @@
 import { checkAutoTriggers, checkErrorAutoTrigger } from '../services/SkillService/autoTrigger';
 
 export interface RoutedOutput {
-  type: 'text' | 'dataframe' | 'chart' | 'error';
+  type: 'text' | 'dataframe' | 'chart' | 'error' | 'warning' | 'info';
   data: any;
   timestamp: number;
+}
+
+function classifyStderrLevel(text: string): 'error' | 'warning' | 'info' {
+  // 检查是否是真正的异常/错误（有 Traceback 或 Error/Exception 关键字）
+  if (/Traceback \(most recent call last\)/i.test(text) ||
+      /^\w+(Error|Exception):/m.test(text) ||
+      /^ERROR[:\s]/im.test(text) ||
+      /logging\.error/i.test(text)) {
+    return 'error';
+  }
+
+  // 检查是否是警告
+  if (/Warning[:\s]/i.test(text) ||
+      /^WARNING[:\s]/im.test(text) ||
+      /warnings\.warn/i.test(text) ||
+      /DeprecationWarning/i.test(text) ||
+      /FutureWarning/i.test(text) ||
+      /UserWarning/i.test(text) ||
+      /RuntimeWarning/i.test(text)) {
+    return 'warning';
+  }
+
+  // 其余 stderr 内容当作 info（如 logging.info 输出到 stderr、pip 安装信息等）
+  return 'info';
 }
 
 export function routeStreamMessage(streamMsg: { stream: string; data: Record<string, any> }): RoutedOutput {
   const timestamp = Date.now();
 
   if (streamMsg.stream === 'stderr') {
-    const errorText = streamMsg.data['text/plain'] || '';
-    
-    // Auto-trigger debug skill on errors
-    checkErrorAutoTrigger(errorText);
-    
+    const text = streamMsg.data['text/plain'] || '';
+    const level = classifyStderrLevel(text);
+
+    if (level === 'error') {
+      checkErrorAutoTrigger(text);
+    }
+
     return {
-      type: 'error',
-      data: { text: errorText },
+      type: level,
+      data: { text },
       timestamp,
     };
   }

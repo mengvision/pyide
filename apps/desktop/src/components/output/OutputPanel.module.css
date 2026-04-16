@@ -91,9 +91,47 @@
 }
 
 .outputItem {
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
 }
 
-.outputItem:last-child {
+/* REPL entry container */
+.replEntry {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+}
+.replEntry:last-child {
   border-bottom: none;
+}
+
+/* Input code block with prompt */
+.inputBlock {
+  display: flex;
+  gap: 8px;
+  padding: 2px 12px;
+  align-items: flex-start;
+}
+.prompt {
+  color: var(--status-success);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.code {
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* Output block - indented to align with code */
+.outputBlock {
+  padding: 0 12px 2px 12px;
+  margin-left: 70px; /* align with code after prompt */
 }

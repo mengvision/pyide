@@ -3,10 +3,12 @@ import { usePlatform } from '@pyide/platform';
 import { useKernelStore } from '../stores/kernelStore';
 import { useEditorStore } from '../stores/editorStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useUiStore } from '../stores/uiStore';
 import { routeStreamMessage } from '../utils/outputRouter';
-import type { VariableInfo } from '@pyide/protocol/kernel';
+import type { VariableInfo, OutputData } from '@pyide/protocol/kernel';
 import { listEnvironmentTemplates } from '../services/environmentService';
 import type { EnvironmentTemplate } from '../services/environmentService';
+import { useEnvStore } from '../stores/envStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +65,15 @@ class RemoteKernelClient {
         return;
       }
 
+      const timeoutId = setTimeout(() => {
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+          reject(new Error('Remote kernel WebSocket connection timeout (10s)'));
+        }
+      }, 10_000);
+
       this.ws.onopen = () => {
+        clearTimeout(timeoutId);
         this._setStatus('connected');
         this.reconnectAttempts = 0; // Reset on successful connection
         resolve();
@@ -94,7 +104,8 @@ class RemoteKernelClient {
         }
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event: CloseEvent) => {
+        console.log(`[RemoteKernelClient] WebSocket closed: code=${event.code}, reason=${event.reason}`);
         this._setStatus('disconnected');
         this._rejectAllPending('Remote connection closed');
         if (!this.destroyed) {
@@ -102,7 +113,9 @@ class RemoteKernelClient {
         }
       };
 
-      this.ws.onerror = () => {
+      this.ws.onerror = (event) => {
+        clearTimeout(timeoutId);
+        console.error('[RemoteKernelClient] WebSocket error:', event);
         reject(
           new Error(
             'Remote kernel WebSocket connection failed. ' +
@@ -114,6 +127,7 @@ class RemoteKernelClient {
   }
 
   private _setStatus(status: ConnectionStatus): void {
+    console.log(`[RemoteKernelClient] Status: ${this._status} → ${status}`);
     this._status = status;
     this.statusCallback?.(status);
   }
@@ -194,6 +208,10 @@ class RemoteKernelClient {
     return this.send('complete', { code, cursor_pos: cursorPos });
   }
 
+  kernelInfo(): Promise<any> {
+    return this.send('kernel_info', {});
+  }
+
   disconnect(): void {
     this.destroyed = true;
     if (this.reconnectTimer !== null) {
@@ -226,6 +244,7 @@ export function useRemoteKernel() {
   const clientRef = useRef<RemoteKernelClient | null>(null);
   const serverUrl = useSettingsStore((s) => s.serverUrl);
   const platform = usePlatform();
+  const kernelMode = useUiStore((s) => s.kernelMode);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [availableTemplates, setAvailableTemplates] = useState<EnvironmentTemplate[]>([]);
 
@@ -238,6 +257,9 @@ export function useRemoteKernel() {
     incrementExecutionCount,
     setLastExecutedCellId,
     connectionStatus,
+    addReplEntry,
+    appendReplOutput,
+    addInputHistory,
   } = useKernelStore();
 
   // ── Load available environment templates ─────────────────────────────────
@@ -259,6 +281,15 @@ export function useRemoteKernel() {
     loadTemplates();
   }, [loadTemplates]);
 
+  // ── Disconnect remote client when switching to local mode ────────────────
+
+  useEffect(() => {
+    if (kernelMode === 'local' && clientRef.current) {
+      clientRef.current.disconnect();
+      clientRef.current = null;
+    }
+  }, [kernelMode]);
+
   // ── Build the WebSocket URL ───────────────────────────────────────────────
 
   const buildWsUrl = useCallback(async (): Promise<string> => {
@@ -279,31 +310,45 @@ export function useRemoteKernel() {
   // ── Start (connect to remote kernel) ─────────────────────────────────────
 
   const startKernel = useCallback(async () => {
+    // Don't start remote kernel if not in remote mode
+    if (useUiStore.getState().kernelMode !== 'remote') return;
+  
     if (clientRef.current && clientRef.current.status !== 'disconnected') {
       return;
     }
-
+  
     try {
-      setConnectionStatus('connecting');
-
+      if (useUiStore.getState().kernelMode === 'remote') {
+        setConnectionStatus('connecting');
+      }
+  
       // Load auth token
       const token = await platform.auth.loadToken();
       if (!token) {
         throw new Error('Not authenticated. Please log in first.');
       }
-
+  
+      // Check mode again after async token load
+      if (useUiStore.getState().kernelMode !== 'remote') return;
+  
       // Start kernel with selected environment template
       const { startKernelWithTemplate } = await import('../services/environmentService');
       await startKernelWithTemplate(serverUrl, token, selectedTemplateId, platform);
-
+  
+      // Check mode again after async kernel start
+      if (useUiStore.getState().kernelMode !== 'remote') return;
+  
       // Connect via WebSocket
       const wsUrl = await buildWsUrl();
       const client = new RemoteKernelClient(wsUrl, buildWsUrl);
-
+  
       client.setStatusCallback((status) => {
-        setConnectionStatus(status);
+        // Only update global connection status if remote is the active mode
+        if (useUiStore.getState().kernelMode === 'remote') {
+          setConnectionStatus(status);
+        }
       });
-
+  
       client.setStreamCallback((stream) => {
         const cellId =
           stream.cell_id ??
@@ -313,19 +358,62 @@ export function useRemoteKernel() {
         console.log('[StreamCallback]', cellId, stream);
         const routed = routeStreamMessage(stream);
         addOutput(cellId, routed);
+  
+        // 同时追加到 REPL 历史
+        const replEntryId = (window as any).__currentReplEntryId;
+        if (replEntryId) {
+          appendReplOutput(replEntryId, routed);
+        }
       });
-
-      await client.connect();
+  
+      // Set ref BEFORE connect so cleanup can always find and disconnect it
       clientRef.current = client;
+  
+      try {
+        await client.connect();
+      } catch (connectErr) {
+        // Connect failed - disconnect to stop zombie reconnection loop
+        client.disconnect();
+        clientRef.current = null;
+        console.error('[useRemoteKernel] WebSocket connect failed:', connectErr);
+        if (useUiStore.getState().kernelMode === 'remote') {
+          setConnectionStatus('disconnected');
+        }
+        throw connectErr;
+      }
+  
+      // Double-check mode hasn't changed during async connect
+      if (useUiStore.getState().kernelMode !== 'remote') {
+        client.disconnect();
+        clientRef.current = null;
+        return;
+      }
+  
+      // 安全网：确保连接成功后状态一定是 connected（防止竞态条件）
+      setConnectionStatus('connected');
 
+      // Fetch kernel info (Python version) after successful connection
+      try {
+        const kernelInfo = await client.kernelInfo();
+        if (kernelInfo?.python_version) {
+          useEnvStore.getState().setActiveVenv({
+            name: 'Remote Python',
+            path: kernelInfo.python_path || '',
+            pythonVersion: kernelInfo.python_version,
+          });
+        }
+      } catch (e) {
+        console.warn('[useRemoteKernel] Failed to get kernel info:', e);
+      }
+  
       // Remote kernels don't have a local port — use a sentinel value
       setPort(null);
-      
+        
       // Log which environment is being used
       const templateName = selectedTemplateId 
         ? availableTemplates.find(t => t.id === selectedTemplateId)?.display_name
         : 'System Python';
-      
+        
       addOutput('stream', {
         type: 'stream',
         name: 'stdout',
@@ -333,7 +421,9 @@ export function useRemoteKernel() {
       } as any);
     } catch (err) {
       console.error('[useRemoteKernel] Failed to connect:', err);
-      setConnectionStatus('disconnected');
+      if (useUiStore.getState().kernelMode === 'remote') {
+        setConnectionStatus('disconnected');
+      }
       // Surface error as kernel output so the user sees it
       const message =
         err instanceof Error
@@ -345,9 +435,9 @@ export function useRemoteKernel() {
         text:
           `[Remote Kernel Error] ${message}\n` +
           'Please check:\n' +
-          '  • Server URL in Settings\n' +
-          '  • You are logged in (remote mode requires authentication)\n' +
-          '  • Environment template is valid (if selected)\n',
+          '  \u2022 Server URL in Settings\n' +
+          '  \u2022 You are logged in (remote mode requires authentication)\n' +
+          '  \u2022 Environment template is valid (if selected)\n',
       } as any);
     }
   }, [buildWsUrl, setConnectionStatus, setPort, addOutput, selectedTemplateId, availableTemplates, serverUrl, platform.auth]);
@@ -362,6 +452,17 @@ export function useRemoteKernel() {
       }
 
       setExecuting(true);
+      const entryId = crypto.randomUUID();
+      const currentCount = useKernelStore.getState().executionCount + 1;
+      addReplEntry({
+        id: entryId,
+        code,
+        outputs: [],
+        executionCount: currentCount,
+        timestamp: Date.now(),
+      });
+      (window as any).__currentReplEntryId = entryId;
+      addInputHistory(code);
       const effectiveCellId = cellId ?? (() => {
         const { cells, activeFileId, currentCellIndex } = useEditorStore.getState();
         const cell = cells[currentCellIndex];
@@ -373,6 +474,27 @@ export function useRemoteKernel() {
       try {
         const result = await clientRef.current.execute(code, effectiveCellId);
         incrementExecutionCount();
+
+        // If execution returned an error (e.g. NameError, TypeError), add it to outputs
+        if (result && result.status === 'error' && result.error) {
+          const errorOutput: OutputData = {
+            type: 'error',
+            data: {
+              text: result.error.data?.traceback?.join('\n') ?? result.error.message ?? 'Unknown error',
+              ename: result.error.data?.ename,
+              evalue: result.error.data?.evalue,
+              traceback: result.error.data?.traceback,
+            },
+            timestamp: Date.now(),
+          };
+          // Add to cell outputs (legacy)
+          addOutput(effectiveCellId, errorOutput);
+          // Add to REPL history
+          const currentEntryId = (window as any).__currentReplEntryId;
+          if (currentEntryId) {
+            appendReplOutput(currentEntryId, errorOutput);
+          }
+        }
 
         try {
           const vars = await clientRef.current.inspectAll();
@@ -388,9 +510,10 @@ export function useRemoteKernel() {
       } finally {
         setExecuting(false);
         (window as any).__executingCellId = undefined;
+        (window as any).__currentReplEntryId = undefined;
       }
     },
-    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId],
+    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId, addReplEntry, appendReplOutput, addInputHistory],
   );
 
   // ── Interrupt ────────────────────────────────────────────────────────────
@@ -421,7 +544,9 @@ export function useRemoteKernel() {
   const stopKernel = useCallback(async () => {
     clientRef.current?.disconnect();
     clientRef.current = null;
-    setConnectionStatus('disconnected');
+    if (useUiStore.getState().kernelMode === 'remote') {
+      setConnectionStatus('disconnected');
+    }
     setPort(null);
   }, [setConnectionStatus, setPort]);
 

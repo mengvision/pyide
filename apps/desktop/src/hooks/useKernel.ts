@@ -8,7 +8,7 @@ import { useEnvStore } from '../stores/envStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { routeStreamMessage } from '../utils/outputRouter';
 import { useRemoteKernel } from './useRemoteKernel';
-import type { VariableInfo } from '@pyide/protocol/kernel';
+import type { VariableInfo, OutputData } from '@pyide/protocol/kernel';
 
 /**
  * Resolves the absolute path to packages/pykernel relative to the running
@@ -29,6 +29,7 @@ function resolvePykernelPath(): string {
 function useLocalKernel() {
   const clientRef = useRef<KernelClient | null>(null);
   const platform = usePlatform();
+  const kernelMode = useUiStore((s) => s.kernelMode);
   const {
     setConnectionStatus,
     setExecuting,
@@ -38,27 +39,53 @@ function useLocalKernel() {
     incrementExecutionCount,
     setLastExecutedCellId,
     connectionStatus,
+    addReplEntry,
+    appendReplOutput,
+    addInputHistory,
   } = useKernelStore();
+
+  // ── Disconnect local client when switching to remote mode ────────────────
+
+  useEffect(() => {
+    if (kernelMode === 'remote' && clientRef.current) {
+      clientRef.current.disconnect();
+      clientRef.current = null;
+    }
+  }, [kernelMode]);
 
   // ── Start kernel ────────────────────────────────────────────────────────
 
   const startKernel = useCallback(async () => {
+    // Don't start local kernel if not in local mode
+    if (useUiStore.getState().kernelMode !== 'local') return;
+
     // Avoid double-starting
     if (clientRef.current && clientRef.current.status !== 'disconnected') {
       return;
     }
 
     try {
-      setConnectionStatus('connecting');
+      if (useUiStore.getState().kernelMode === 'local') {
+        setConnectionStatus('connecting');
+      }
 
       const info = await platform.kernel.start(resolvePykernelPath(), null);
+
+      // Check mode again after async kernel start
+      if (useUiStore.getState().kernelMode !== 'local') {
+        try { await platform.kernel.stop(); } catch { /* ignore */ }
+        return;
+      }
 
       setPort(info.port);
 
       const client = new KernelClient(info.port);
 
       client.setStatusCallback((status) => {
-        setConnectionStatus(status);
+        // Only update global connection status if local is the active mode
+        if (useUiStore.getState().kernelMode === 'local') {
+          setConnectionStatus(status);
+        }
       });
 
       client.setStreamCallback((stream) => {
@@ -70,10 +97,36 @@ function useLocalKernel() {
         console.log('[StreamCallback]', cellId, stream);
         const routed = routeStreamMessage(stream);
         addOutput(cellId, routed);
+
+        // 同时追加到 REPL 历史
+        const replEntryId = (window as any).__currentReplEntryId;
+        if (replEntryId) {
+          appendReplOutput(replEntryId, routed);
+        }
       });
 
-      await client.connect();
+      // Set ref BEFORE connect so cleanup can always find and disconnect it
       clientRef.current = client;
+
+      try {
+        await client.connect();
+      } catch (connectErr) {
+        // Connect failed - disconnect to stop zombie reconnection loop
+        client.disconnect();
+        clientRef.current = null;
+        console.error('[useLocalKernel] WebSocket connect failed:', connectErr);
+        if (useUiStore.getState().kernelMode === 'local') {
+          setConnectionStatus('disconnected');
+        }
+        return;
+      }
+
+      // Double-check mode hasn't changed during async connect
+      if (useUiStore.getState().kernelMode !== 'local') {
+        client.disconnect();
+        clientRef.current = null;
+        return;
+      }
 
       // Fetch kernel info (Python version) after successful connection
       try {
@@ -90,7 +143,9 @@ function useLocalKernel() {
       }
     } catch (err) {
       console.error('[useLocalKernel] Failed to start kernel:', err);
-      setConnectionStatus('disconnected');
+      if (useUiStore.getState().kernelMode === 'local') {
+        setConnectionStatus('disconnected');
+      }
     }
   }, [setConnectionStatus, setPort, addOutput]);
 
@@ -104,6 +159,17 @@ function useLocalKernel() {
       }
 
       setExecuting(true);
+      const entryId = crypto.randomUUID();
+      const currentCount = useKernelStore.getState().executionCount + 1;
+      addReplEntry({
+        id: entryId,
+        code,
+        outputs: [],
+        executionCount: currentCount,
+        timestamp: Date.now(),
+      });
+      (window as any).__currentReplEntryId = entryId;
+      addInputHistory(code);
       const effectiveCellId = cellId ?? (() => {
         const { cells, activeFileId, currentCellIndex } = useEditorStore.getState();
         const cell = cells[currentCellIndex];
@@ -117,6 +183,27 @@ function useLocalKernel() {
 
         // Increment execution counter
         incrementExecutionCount();
+
+        // If execution returned an error (e.g. NameError, TypeError), add it to outputs
+        if (result && result.status === 'error' && result.error) {
+          const errorOutput: OutputData = {
+            type: 'error',
+            data: {
+              text: result.error.data?.traceback?.join('\n') ?? result.error.message ?? 'Unknown error',
+              ename: result.error.data?.ename,
+              evalue: result.error.data?.evalue,
+              traceback: result.error.data?.traceback,
+            },
+            timestamp: Date.now(),
+          };
+          // Add to cell outputs (legacy)
+          addOutput(effectiveCellId, errorOutput);
+          // Add to REPL history
+          const currentEntryId = (window as any).__currentReplEntryId;
+          if (currentEntryId) {
+            appendReplOutput(currentEntryId, errorOutput);
+          }
+        }
 
         // Refresh variable list after each execution
         try {
@@ -133,9 +220,10 @@ function useLocalKernel() {
       } finally {
         setExecuting(false);
         (window as any).__executingCellId = undefined;
+        (window as any).__currentReplEntryId = undefined;
       }
     },
-    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId],
+    [setExecuting, setVariables, incrementExecutionCount, setLastExecutedCellId, addReplEntry, appendReplOutput, addInputHistory],
   );
 
   // ── Interrupt ─────────────────────────────────────────────────────────────
@@ -178,7 +266,9 @@ function useLocalKernel() {
     } catch (err) {
       console.error('[useLocalKernel] Stop kernel error:', err);
     }
-    setConnectionStatus('disconnected');
+    if (useUiStore.getState().kernelMode === 'local') {
+      setConnectionStatus('disconnected');
+    }
     setPort(null);
   }, [setConnectionStatus, setPort]);
 

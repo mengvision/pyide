@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useKernel } from '../hooks/useKernel';
 import { useUiStore } from '../stores/uiStore';
+import { useKernelStore } from '../stores/kernelStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { ChatEngine } from '../services/ChatEngine';
 import { useChatContext } from '../hooks/useChatContext';
+import { usePlatform } from '@pyide/platform';
+import { saveHistory, loadHistory } from '../services/replHistoryService';
 
 type KernelContextValue = ReturnType<typeof useKernel> & {
   chatEngine: ChatEngine;
@@ -20,6 +23,7 @@ export function KernelProvider({ children }: KernelProviderProps) {
   const kernelMode = useUiStore((s) => s.kernelMode);
   const serverUrl = useSettingsStore((s) => s.serverUrl);
   const aiConfig = useSettingsStore((s) => s.aiConfig);
+  const platform = usePlatform();
   
   // Create ChatEngine instance (memoized)
   const chatEngineRef = useRef<ChatEngine | null>(null);
@@ -45,6 +49,61 @@ export function KernelProvider({ children }: KernelProviderProps) {
   const workspacePath = useUiStore((s) => s.workspacePath);
   const projectId = workspacePath || undefined;
   useChatContext({ chatEngine: chatEngineRef.current, projectId });
+
+  // Load REPL history on mount
+  useEffect(() => {
+    const wp = useUiStore.getState().workspacePath;
+    if (wp) {
+      loadHistory(platform, wp)
+        .then((history) => {
+          if (history.length > 0) {
+            useKernelStore.getState().setReplHistory(history);
+          }
+        })
+        .catch((err) => {
+          console.warn('[KernelProvider] Failed to load REPL history:', err);
+        });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save REPL history with 2-second debounce on changes
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let prevReplHistoryLength = useKernelStore.getState().replHistory.length;
+    let prevOutputCount = useKernelStore
+      .getState()
+      .replHistory.reduce((s, e) => s + e.outputs.length, 0);
+
+    const unsubscribe = useKernelStore.subscribe((state) => {
+      const currentLength = state.replHistory.length;
+      const currentOutputCount = state.replHistory.reduce((s, e) => s + e.outputs.length, 0);
+
+      // Only react when history actually changed
+      if (
+        currentLength === prevReplHistoryLength &&
+        currentOutputCount === prevOutputCount
+      ) {
+        return;
+      }
+      prevReplHistoryLength = currentLength;
+      prevOutputCount = currentOutputCount;
+
+      const wp = useUiStore.getState().workspacePath;
+      if (!wp || currentLength === 0) return;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        saveHistory(platform, wp, state.replHistory).catch((err) => {
+          console.warn('[KernelProvider] Failed to save REPL history:', err);
+        });
+      }, 2000);
+    });
+
+    return () => {
+      unsubscribe();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Auto-start kernel on mount
   useEffect(() => {

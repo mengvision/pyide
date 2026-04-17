@@ -4,6 +4,7 @@ import { useEditorStore } from '../../stores/editorStore';
 import { EditorTabs } from './EditorTabs';
 import { CellEditor, CellEditorHandle } from './CellEditor';
 import { CellToolbar } from './CellToolbar';
+import MarkdownEditor from './MarkdownEditor';
 import { useKernelContext } from '../../contexts/KernelContext';
 import { OutputPanel } from '../output/OutputPanel';
 import styles from './EditorPanel.module.css';
@@ -13,7 +14,7 @@ interface EditorPanelProps {
 }
 
 export function EditorPanel({ onRunCell }: EditorPanelProps) {
-  const { files, activeFileId, cells, setCurrentCellIndex } = useEditorStore();
+  const { files, activeFileId, cells, setCurrentCellIndex, updateFileContent } = useEditorStore();
   const cellEditorRef = useRef<CellEditorHandle>(null);
   const [editorInstance, setEditorInstance] = useState<MonacoTypes.editor.IStandaloneCodeEditor | null>(null);
   const { startKernel, executeCode, interruptExecution } = useKernelContext();
@@ -24,6 +25,12 @@ export function EditorPanel({ onRunCell }: EditorPanelProps) {
   }, [startKernel]);
 
   const hasFiles = files.length > 0 && activeFileId !== null;
+
+  // Get the active file
+  const activeFile = files.find((f) => f.id === activeFileId);
+
+  // Check if current file is a Markdown file
+  const isMarkdownFile = activeFile && activeFile.name.endsWith('.md');
 
   // Cell start lines (1-based) for CellToolbar
   const cellStartLines = cells.map((c) => c.startLine + 1);
@@ -92,20 +99,31 @@ export function EditorPanel({ onRunCell }: EditorPanelProps) {
 
       <div className={styles.editorArea}>
         {hasFiles ? (
-          <>
-            <CellEditor
-              ref={cellEditorRef}
-              onRunCell={handleRunCell}
-              onCellToolbarPositionChange={handleCellToolbarPositionChange}
+          isMarkdownFile && activeFile ? (
+            <MarkdownEditor
+              file={activeFile}
+              onContentChange={(content) => {
+                if (activeFileId) {
+                  updateFileContent(activeFileId, content);
+                }
+              }}
             />
-            <CellToolbar
-              editor={editorInstance}
-              cellStartLines={cellStartLines}
-              onRunCell={handleRunCellByIndex}
-              onRunCellAndAdvance={handleRunCellAndAdvance}
-              onStopExecution={handleStopExecution}
-            />
-          </>
+          ) : (
+            <>
+              <CellEditor
+                ref={cellEditorRef}
+                onRunCell={handleRunCell}
+                onCellToolbarPositionChange={handleCellToolbarPositionChange}
+              />
+              <CellToolbar
+                editor={editorInstance}
+                cellStartLines={cellStartLines}
+                onRunCell={handleRunCellByIndex}
+                onRunCellAndAdvance={handleRunCellAndAdvance}
+                onStopExecution={handleStopExecution}
+              />
+            </>
+          )
         ) : (
           <div className={styles.emptyState}>
             <span className={styles.emptyStateIcon}>📄</span>

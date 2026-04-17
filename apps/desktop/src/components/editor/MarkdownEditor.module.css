@@ -1,0 +1,426 @@
+/* MarkdownEditor.module.css */
+
+/* ============================================================
+   Layout
+   ============================================================ */
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--md-bg, #ffffff);
+  color: var(--md-fg, #1a1a1a);
+}
+
+.editorArea {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ============================================================
+   Milkdown WYSIWYG wrapper
+   ============================================================ */
+.milkdownWrapper {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 40px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.7;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   Milkdown content element styles (global overrides)
+   ============================================================ */
+
+/* Editor container */
+:global(.milkdown) {
+  outline: none;
+}
+
+:global(.milkdown .ProseMirror) {
+  outline: none;
+  min-height: 200px;
+}
+
+/* Headings */
+:global(.milkdown h1),
+:global(.milkdown .ProseMirror h1) {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+  line-height: 1.3;
+  border-bottom: 1px solid var(--md-border, #e5e7eb);
+  padding-bottom: 0.3em;
+}
+
+:global(.milkdown h2),
+:global(.milkdown .ProseMirror h2) {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 0.9rem 0 0.4rem;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--md-border, #e5e7eb);
+  padding-bottom: 0.2em;
+}
+
+:global(.milkdown h3),
+:global(.milkdown .ProseMirror h3) {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 0.8rem 0 0.4rem;
+}
+
+:global(.milkdown h4),
+:global(.milkdown .ProseMirror h4) {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0.7rem 0 0.3rem;
+}
+
+:global(.milkdown h5),
+:global(.milkdown .ProseMirror h5),
+:global(.milkdown h6),
+:global(.milkdown .ProseMirror h6) {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.6rem 0 0.3rem;
+}
+
+/* Paragraph */
+:global(.milkdown p),
+:global(.milkdown .ProseMirror p) {
+  margin: 0.5em 0;
+}
+
+/* Inline code */
+:global(.milkdown code:not([class*="language-"])),
+:global(.milkdown .ProseMirror code:not([class*="language-"])) {
+  background: var(--md-inline-code-bg, #f3f4f6);
+  color: var(--md-inline-code-fg, #c0392b);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: 0.875em;
+}
+
+/* Code blocks */
+:global(.milkdown pre),
+:global(.milkdown .ProseMirror pre) {
+  background: var(--md-code-bg, #f6f8fa);
+  border-radius: 6px;
+  padding: 1em 1.2em;
+  overflow: visible; /* Changed from overflow-x: auto to allow button visibility */
+  margin: 0.8em 0;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: 0.875em;
+  line-height: 1.6;
+  border: 1px solid var(--md-border, #e5e7eb);
+}
+
+:global(.milkdown pre code),
+:global(.milkdown .ProseMirror pre code) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Allow Prism token colors to override - only apply inherit when no token class */
+:global(.milkdown pre code:not([class*="language-"])),
+:global(.milkdown .ProseMirror pre code:not([class*="language-"])) {
+  color: inherit;
+}
+
+/* Blockquote */
+:global(.milkdown blockquote),
+:global(.milkdown .ProseMirror blockquote) {
+  border-left: 4px solid var(--md-accent, #3b82f6);
+  margin: 0.8em 0;
+  padding: 0.4em 0 0.4em 1em;
+  color: var(--md-muted, #6b7280);
+  background: var(--md-blockquote-bg, #f9fafb);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Tables */
+:global(.milkdown table),
+:global(.milkdown .ProseMirror table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.8em 0;
+  overflow-x: auto;
+  display: block;
+}
+
+:global(.milkdown th),
+:global(.milkdown .ProseMirror th) {
+  background: var(--md-table-header-bg, #f3f4f6);
+  font-weight: 600;
+  border: 1px solid var(--md-border, #e5e7eb);
+  padding: 0.5em 0.8em;
+  text-align: left;
+}
+
+:global(.milkdown td),
+:global(.milkdown .ProseMirror td) {
+  border: 1px solid var(--md-border, #e5e7eb);
+  padding: 0.5em 0.8em;
+}
+
+:global(.milkdown tr:nth-child(even)),
+:global(.milkdown .ProseMirror tr:nth-child(even)) {
+  background: var(--md-table-even-bg, #f9fafb);
+}
+
+/* Lists */
+:global(.milkdown ul),
+:global(.milkdown .ProseMirror ul) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+  list-style: disc;
+}
+
+:global(.milkdown ol),
+:global(.milkdown .ProseMirror ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+  list-style: decimal;
+}
+
+:global(.milkdown li),
+:global(.milkdown .ProseMirror li) {
+  margin: 0.25em 0;
+}
+
+/* Task list */
+:global(.milkdown li[data-task-list-item]),
+:global(.milkdown .ProseMirror li[data-task-list-item]) {
+  list-style: none;
+  margin-left: -1.5em;
+  padding-left: 1.5em;
+}
+
+/* Images */
+:global(.milkdown img),
+:global(.milkdown .ProseMirror img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Links */
+:global(.milkdown a),
+:global(.milkdown .ProseMirror a) {
+  color: var(--md-accent, #3b82f6);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+:global(.milkdown a:hover),
+:global(.milkdown .ProseMirror a:hover) {
+  color: var(--md-accent-hover, #2563eb);
+}
+
+/* Horizontal rule */
+:global(.milkdown hr),
+:global(.milkdown .ProseMirror hr) {
+  border: none;
+  border-top: 1px solid var(--md-border, #e5e7eb);
+  margin: 1.5em 0;
+}
+
+/* Math (KaTeX) */
+:global(.milkdown .math-inline),
+:global(.milkdown .math-block) {
+  color: var(--md-fg, #1a1a1a);
+}
+
+/* Strikethrough */
+:global(.milkdown del),
+:global(.milkdown .ProseMirror del) {
+  text-decoration: line-through;
+  color: var(--md-muted, #6b7280);
+}
+
+/* ============================================================
+   Monaco source editor
+   ============================================================ */
+.sourceEditor {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+/* ============================================================
+   Mode toggle button (bottom-left corner)
+   ============================================================ */
+.modeToggle {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  border: 1px solid var(--md-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--md-toggle-bg, rgba(255, 255, 255, 0.85));
+  color: var(--md-toggle-fg, #374151);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  opacity: 0.75;
+  letter-spacing: 0.01em;
+}
+
+.modeToggle:hover {
+  opacity: 1;
+  background: var(--md-toggle-hover-bg, rgba(243, 244, 246, 0.95));
+  border-color: var(--md-accent, #3b82f6);
+  color: var(--md-accent, #3b82f6);
+}
+
+.modeToggle:active {
+  transform: scale(0.97);
+}
+
+.dark .modeToggle {
+  background: var(--md-toggle-bg);
+  color: var(--md-toggle-fg);
+  border-color: var(--md-border);
+}
+
+.dark .modeToggle:hover {
+  background: var(--md-toggle-hover-bg);
+  border-color: var(--md-accent);
+  color: var(--md-accent);
+}
+
+/* ============================================================
+   Light theme (default)
+   ============================================================ */
+.light {
+  --md-bg: #ffffff;
+  --md-fg: #1a1a1a;
+  --md-muted: #6b7280;
+  --md-border: #e5e7eb;
+  --md-accent: #3b82f6;
+  --md-accent-hover: #2563eb;
+  --md-code-bg: #f6f8fa;
+  --md-inline-code-bg: #f3f4f6;
+  --md-inline-code-fg: #c0392b;
+  --md-table-header-bg: #f3f4f6;
+  --md-table-even-bg: #f9fafb;
+  --md-blockquote-bg: #f9fafb;
+  --md-toggle-bg: rgba(255, 255, 255, 0.85);
+  --md-toggle-fg: #374151;
+  --md-toggle-hover-bg: rgba(243, 244, 246, 0.95);
+}
+
+/* ============================================================
+   Dark theme
+   ============================================================ */
+.dark {
+  --md-bg: #1e1e2e;
+  --md-fg: #cdd6f4;
+  --md-muted: #9399b2;
+  --md-border: #313244;
+  --md-accent: #89b4fa;
+  --md-accent-hover: #74c7ec;
+  --md-code-bg: #181825;
+  --md-inline-code-bg: #313244;
+  --md-inline-code-fg: #f38ba8;
+  --md-table-header-bg: #181825;
+  --md-table-even-bg: #1a1a2e;
+  --md-blockquote-bg: #181825;
+  --md-toggle-bg: rgba(30, 30, 46, 0.88);
+  --md-toggle-fg: #cdd6f4;
+  --md-toggle-hover-bg: rgba(49, 50, 68, 0.95);
+
+  background: var(--md-bg);
+  color: var(--md-fg);
+}
+
+/* Dark mode milkdown overrides */
+.dark :global(.milkdown .ProseMirror),
+.dark :global(.milkdown) {
+  color: var(--md-fg);
+  background: var(--md-bg);
+}
+
+.dark :global(.milkdown code:not([class*="language-"])),
+.dark :global(.milkdown .ProseMirror code:not([class*="language-"])) {
+  background: var(--md-inline-code-bg);
+  color: var(--md-inline-code-fg);
+}
+
+.dark :global(.milkdown pre),
+.dark :global(.milkdown .ProseMirror pre) {
+  background: var(--md-code-bg);
+  border-color: var(--md-border);
+}
+
+.dark :global(.milkdown blockquote),
+.dark :global(.milkdown .ProseMirror blockquote) {
+  background: var(--md-blockquote-bg);
+  color: var(--md-muted);
+  border-left-color: var(--md-accent);
+}
+
+.dark :global(.milkdown h1),
+.dark :global(.milkdown .ProseMirror h1),
+.dark :global(.milkdown h2),
+.dark :global(.milkdown .ProseMirror h2) {
+  border-bottom-color: var(--md-border);
+}
+
+.dark :global(.milkdown th),
+.dark :global(.milkdown .ProseMirror th) {
+  background: var(--md-table-header-bg);
+  border-color: var(--md-border);
+}
+
+.dark :global(.milkdown td),
+.dark :global(.milkdown .ProseMirror td) {
+  border-color: var(--md-border);
+}
+
+.dark :global(.milkdown tr:nth-child(even)),
+.dark :global(.milkdown .ProseMirror tr:nth-child(even)) {
+  background: var(--md-table-even-bg);
+}
+
+.dark :global(.milkdown hr),
+.dark :global(.milkdown .ProseMirror hr) {
+  border-top-color: var(--md-border);
+}
+
+.dark :global(.milkdown a),
+.dark :global(.milkdown .ProseMirror a) {
+  color: var(--md-accent);
+}
+
+.dark .modeToggle {
+  background: var(--md-toggle-bg);
+  color: var(--md-toggle-fg);
+  border-color: var(--md-border);
+}
+
+.dark .modeToggle:hover {
+  background: var(--md-toggle-hover-bg);
+  border-color: var(--md-accent);
+  color: var(--md-accent);
+}

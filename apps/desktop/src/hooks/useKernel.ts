@@ -98,6 +98,15 @@ function useLocalKernel() {
         const routed = routeStreamMessage(stream);
         addOutput(cellId, routed);
 
+        // Store outputs for code block executor
+        if (!(window as any).__cellOutputs) {
+          (window as any).__cellOutputs = {};
+        }
+        if (!(window as any).__cellOutputs[cellId]) {
+          (window as any).__cellOutputs[cellId] = [];
+        }
+        (window as any).__cellOutputs[cellId].push(routed);
+
         // 同时追加到 REPL 历史
         const replEntryId = (window as any).__currentReplEntryId;
         if (replEntryId) {

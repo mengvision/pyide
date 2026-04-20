@@ -3,7 +3,7 @@
  * Displays MCP server connections and status
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { mcpClient } from '../../services/MCPService/client';
 import { loadMCPConfig } from '../../services/MCPService/configLoader';
 import type { MCPConnection } from '../../types/mcp';
@@ -14,25 +14,45 @@ export const MCPPanel: React.FC = () => {
   const [connections, setConnections] = useState<MCPConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const platform = usePlatform();
+  const initializedRef = useRef(false);
   
   useEffect(() => {
+    // Prevent double initialization in React StrictMode
+    if (initializedRef.current) {
+      console.log('[MCP] Already initialized, skipping');
+      return;
+    }
+    initializedRef.current = true;
     initializeMCP();
   }, []);
   
   async function initializeMCP() {
     setLoading(true);
     try {
+      console.log('[MCP] Starting initialization...');
       const config = await loadMCPConfig(platform);
+      console.log('[MCP] Config loaded:', config);
       
       // Connect to all configured servers
       for (const [name, serverConfig] of Object.entries(config.mcpServers)) {
+        console.log(`[MCP] Connecting to server: ${name}`);
         await mcpClient.connectToServer(name, serverConfig);
+        console.log(`[MCP] Server ${name} connection complete`);
       }
       
-      setConnections(mcpClient.getAllConnections());
+      const connections = mcpClient.getAllConnections();
+      console.log('[MCP] All connections:', connections);
+      setConnections(connections);
     } catch (error) {
-      console.error('Failed to initialize MCP:', error);
+      console.error('[MCP] Failed to initialize MCP:', error);
+      // Still set connections to whatever we have
+      try {
+        setConnections(mcpClient.getAllConnections());
+      } catch (e) {
+        console.error('[MCP] Failed to get connections:', e);
+      }
     } finally {
+      console.log('[MCP] Initialization complete, setting loading=false');
       setLoading(false);
     }
   }

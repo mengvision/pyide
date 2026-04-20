@@ -38,9 +38,34 @@ function CodeBlock({ language, code }: CodeBlockProps) {
     if (!activeFileId) return;
     const activeFile = files.find((f) => f.id === activeFileId);
     if (!activeFile) return;
-    const separator = activeFile.content.endsWith('\n') ? '' : '\n';
-    updateFileContent(activeFileId, `${activeFile.content}${separator}\n# --- Inserted from AI Chat ---\n${code}\n`);
-  }, [activeFileId, files, updateFileContent, code]);
+
+    // Detect file type by extension
+    const fileExtension = activeFile.name.split('.').pop()?.toLowerCase();
+    const isMarkdown = fileExtension === 'md' || fileExtension === 'markdown';
+    const isPython = fileExtension === 'py';
+
+    let insertContent: string;
+
+    if (isMarkdown) {
+      // Markdown场景：使用标准Markdown代码块格式
+      const langTag = language || 'text';
+      insertContent = `${activeFile.content}${activeFile.content.endsWith('\n') ? '' : '\n'}
+\`\`\`${langTag}
+${code}
+\`\`\`
+`;
+    } else if (isPython) {
+      // Python场景：直接插入代码，带注释标记
+      const separator = activeFile.content.endsWith('\n') ? '' : '\n';
+      insertContent = `${activeFile.content}${separator}\n# --- Inserted from AI Chat ---\n${code}\n`;
+    } else {
+      // 其他文件类型：使用通用格式
+      const separator = activeFile.content.endsWith('\n') ? '' : '\n';
+      insertContent = `${activeFile.content}${separator}\n// --- Inserted from AI Chat ---\n${code}\n`;
+    }
+
+    updateFileContent(activeFileId, insertContent);
+  }, [activeFileId, files, updateFileContent, code, language]);
 
   return (
     <div className={styles.codeBlock}>

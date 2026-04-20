@@ -33,21 +33,38 @@ export class MCPChatIntegration {
     }
 
     const parts: string[] = ['\n\n=== AVAILABLE MCP TOOLS ==='];
+    parts.push('\nYou have access to the following MCP servers and tools. Use them when the user asks about data, metadata, lineage, or related operations.');
 
     for (const connection of connectedServers) {
       if (connection.tools.length > 0) {
-        parts.push(`\nServer: ${connection.serverName}`);
+        parts.push(`\n## Server: ${connection.serverName}`);
+        parts.push(`You can use tools from the "${connection.serverName}" server by responding with:`);
+        parts.push(`[TOOL_CALL: ${connection.serverName}.tool_name({"arg1": "value1", "arg2": "value2"})]`);
 
+        parts.push('\n### Available Tools:');
         for (const tool of connection.tools) {
-          parts.push(`- ${tool.name}: ${tool.description}`);
-          if (tool.inputSchema) {
-            parts.push(`  Parameters: ${JSON.stringify(tool.inputSchema, null, 2)}`);
+          parts.push(`\n#### ${tool.name}`);
+          parts.push(`**Description:** ${tool.description}`);
+          if (tool.inputSchema && tool.inputSchema.properties) {
+            parts.push('**Parameters:**');
+            const props = tool.inputSchema.properties;
+            const required = tool.inputSchema.required || [];
+            for (const [paramName, paramDef] of Object.entries(props)) {
+              const isRequired = required.includes(paramName);
+              const paramInfo = paramDef as any;
+              parts.push(`- ${paramName} (${paramInfo.type || 'any'}${isRequired ? ', required' : ''}): ${paramInfo.description || ''}`);
+            }
           }
         }
       }
     }
 
-    parts.push('\nTo use a tool, respond with: [TOOL_CALL: server_name.tool_name({"arg": "value"})]');
+    parts.push('\n\n### Usage Examples:');
+    parts.push('- To search for data: [TOOL_CALL: datahub.search({"query": "revenue_*"})]');
+    parts.push('- To get lineage: [TOOL_CALL: datahub.get_lineage({"urn": "urn:li:dataset:...", "direction": "DOWNSTREAM"})]');
+    parts.push('- To get entity details: [TOOL_CALL: datahub.get_entities({"urns": ["urn:li:dataset:..."]})]');
+
+    parts.push('\n**IMPORTANT:** Always use the exact format [TOOL_CALL: server.tool({json})] with proper JSON syntax.');
 
     return parts.join('\n');
   }

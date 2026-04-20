@@ -73,6 +73,7 @@ function MilkdownEditorInner({
 }) {
   const onContentChangeRef = useRef(onContentChange);
   onContentChangeRef.current = onContentChange;
+  const editorRef = useRef<Editor | null>(null);
 
   useEditor(
     (root) => {
@@ -121,8 +122,8 @@ function MilkdownEditorInner({
 
       return editor;
     },
-    // Recreate editor when fileId changes
-    [fileId], // eslint-disable-line react-hooks/exhaustive-deps
+    // Recreate editor when fileId or content changes (for external updates like AI Chat insert)
+    [fileId, content], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   return <Milkdown />;

@@ -15,13 +15,17 @@ import type { VariableInfo, OutputData } from '@pyide/protocol/kernel';
  * executable / dev server. In development Tauri serves from the workspace
  * root, so we use a path relative to the app's resource dir.
  * The Tauri command also accepts an absolute path from the frontend.
+ *
+ * Strategy:
+ * 1. Try to resolve relative to current working directory (dev mode)
+ * 2. Try to resolve from executable location (production)
+ * 3. Fall back to empty string (rely on pip-installed pykernel in Python env)
  */
 function resolvePykernelPath(): string {
-  // During development the vite dev-server CWD is apps/desktop, so going two
-  // levels up lands at the workspace root.
-  // In production the app bundle is at a different location but Task 8 will
-  // address bundling; for now use the development-time relative path.
-  return '../../packages/pykernel';
+  // Check if pykernel is installed as a pip package (preferred for reliability)
+  // We return empty string to indicate "use pip-installed version"
+  // The Rust backend will handle finding it in the Python environment
+  return '';
 }
 
 // ── Local kernel hook ─────────────────────────────────────────────────────────
@@ -64,12 +68,18 @@ function useLocalKernel() {
       return;
     }
 
+    // Get the active Python environment from envStore
+    const activeVenv = useEnvStore.getState().activeVenv;
+    const pythonPath = activeVenv?.path ?? null;
+
+    console.log('[useLocalKernel] Starting kernel with Python path:', pythonPath);
+
     try {
       if (useUiStore.getState().kernelMode === 'local') {
         setConnectionStatus('connecting');
       }
 
-      const info = await platform.kernel.start(resolvePykernelPath(), null);
+      const info = await platform.kernel.start(resolvePykernelPath(), pythonPath);
 
       // Check mode again after async kernel start
       if (useUiStore.getState().kernelMode !== 'local') {

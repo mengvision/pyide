@@ -299,3 +299,63 @@
   flex-shrink: 0;
   cursor: default;
 }
+
+/* ── Tool execution status indicator ─────────────────────────────── */
+.toolStatusCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.toolStatusCardDone {
+  padding: 6px 12px;
+  margin: 2px 0;
+  color: var(--status-success);
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.toolStatusSpinner {
+  flex-shrink: 0;
+}
+
+.spinnerDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: toolSpin 0.8s linear infinite;
+}
+
+@keyframes toolSpin {
+  0% { opacity: 0.3; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.3; transform: scale(0.7); }
+}
+
+.toolStatusText {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toolStatusItem {
+  font-family: var(--font-mono, 'SF Mono', 'Cascadia Code', monospace);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.toolStatusLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

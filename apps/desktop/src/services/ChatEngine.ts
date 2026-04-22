@@ -11,6 +11,7 @@ export interface ChatEngineConfig {
 
 export interface ChatContext {
   activeSkills?: string;  // Active skill instructions
+  skillListing?: string;  // Available skills listing for AI discovery
   memories?: string;      // Relevant memory context
   mcpTools?: string;      // Available MCP tools
   kernelState?: string;   // Current kernel state
@@ -36,7 +37,14 @@ export class ChatEngine {
   }
 
   /**
-   * Build system prompt with skills and memory context
+   * Build system prompt by layering context on top of the base prompt.
+   *
+   * Layering order:
+   *   1. basePrompt — kernel state + MCP tools (from useChat)
+   *   2. skillListing — available skills for AI discovery (from ChatEngine.setContext)
+   *   3. activeSkills — current skill instructions (from ChatEngine.setContext)
+   *   4. memories     — relevant memory context (from ChatEngine.setContext)
+   *   5. kernelState  — additional kernel state info (from ChatEngine.setContext)
    */
   private buildSystemPrompt(basePrompt?: string): string {
     const parts: string[] = [];
@@ -46,7 +54,12 @@ export class ChatEngine {
       parts.push(basePrompt);
     }
     
-    // Add active skills context
+    // Add skill listing (for AI discovery — tells AI which skills are available)
+    if (this.context.skillListing) {
+      parts.push(this.context.skillListing);
+    }
+    
+    // Add active skills context (instructions from skills currently in use)
     if (this.context.activeSkills) {
       parts.push('\n\n=== ACTIVE SKILLS ===');
       parts.push(this.context.activeSkills);

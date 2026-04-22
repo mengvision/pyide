@@ -2,14 +2,23 @@
  * Bundled Skills - Pre-packaged skills shipped with PyIDE
  */
 
-import type { SkillDefinition } from '../../types/skill';
+import type { SkillDefinition, SkillArg } from '../../types/skill';
 
 const EDA_SKILL = `---
 name: eda
 description: Perform exploratory data analysis on a DataFrame
-allowed_tools: execute_python_code, inspect_variable
-argument_hint: <variable_name>
+allowed_tools:
+  - execute_python_code
+  - inspect_variable
+arguments:
+  - name: variable_name
+    type: string
+    description: The DataFrame variable to analyze
+    required: true
 when_to_use: When user loads a DataFrame or asks to explore data
+paths:
+  - "**/*.csv"
+  - "**/*.xlsx"
 ---
 
 # Exploratory Data Analysis (EDA) Skill
@@ -51,8 +60,14 @@ Example usage: /eda my_dataframe
 const CLEAN_SKILL = `---
 name: clean
 description: Clean and preprocess a DataFrame
-allowed_tools: execute_python_code, inspect_variable
-argument_hint: <variable_name>
+allowed_tools:
+  - execute_python_code
+  - inspect_variable
+arguments:
+  - name: variable_name
+    type: string
+    description: The DataFrame variable to clean
+    required: true
 when_to_use: When user wants to clean messy data or handle missing values
 ---
 
@@ -102,8 +117,18 @@ Example usage: /clean my_dataframe
 const VIZ_SKILL = `---
 name: viz
 description: Create effective visualizations for data exploration
-allowed_tools: execute_python_code, inspect_variable
-argument_hint: <variable_name> [--type <chart_type>]
+allowed_tools:
+  - execute_python_code
+  - inspect_variable
+arguments:
+  - name: variable_name
+    type: string
+    description: The data variable to visualize
+    required: true
+  - name: chart_type
+    type: string
+    description: Optional chart type (scatter, bar, histogram, line, etc.)
+    required: false
 when_to_use: When user wants to visualize data or explore relationships
 ---
 
@@ -161,8 +186,14 @@ Example usage: /viz sales_data --type scatter
 const MODEL_SKILL = `---
 name: model
 description: Build and evaluate machine learning models
-allowed_tools: execute_python_code, inspect_variable
-argument_hint: <target_variable>
+allowed_tools:
+  - execute_python_code
+  - inspect_variable
+arguments:
+  - name: target_variable
+    type: string
+    description: The target variable to predict
+    required: true
 when_to_use: When user wants to build predictive models
 ---
 
@@ -234,9 +265,17 @@ Example usage: /model price
 const DEBUG_SKILL = `---
 name: debug
 description: Debug Python code errors and exceptions
-allowed_tools: execute_python_code, inspect_variable
-argument_hint: <error_message_or_code>
+allowed_tools:
+  - execute_python_code
+  - inspect_variable
+arguments:
+  - name: error_context
+    type: string
+    description: The error message or code snippet to debug
+    required: false
 when_to_use: When code execution fails or produces unexpected results
+paths:
+  - "**/*.py"
 ---
 
 # Debugging Skill
@@ -325,9 +364,13 @@ export const BUNDLED_SKILLS: SkillDefinition[] = [
     content: EDA_SKILL,
     allowedTools: ['execute_python_code', 'inspect_variable'],
     argumentHint: '<variable_name>',
+    args: [
+      { name: 'variable_name', type: 'string', description: 'The DataFrame variable to analyze', required: true },
+    ],
     whenToUse: 'When user loads a DataFrame or asks to explore data',
+    paths: ['**/*.csv', '**/*.xlsx'],
     source: 'bundled',
-    directory: '/skills/bundled/eda'
+    directory: '/skills/bundled/eda',
   },
   {
     name: 'clean',
@@ -335,19 +378,26 @@ export const BUNDLED_SKILLS: SkillDefinition[] = [
     content: CLEAN_SKILL,
     allowedTools: ['execute_python_code', 'inspect_variable'],
     argumentHint: '<variable_name>',
+    args: [
+      { name: 'variable_name', type: 'string', description: 'The DataFrame variable to clean', required: true },
+    ],
     whenToUse: 'When user wants to clean messy data or handle missing values',
     source: 'bundled',
-    directory: '/skills/bundled/clean'
+    directory: '/skills/bundled/clean',
   },
   {
     name: 'viz',
     description: 'Data Visualization',
     content: VIZ_SKILL,
     allowedTools: ['execute_python_code', 'inspect_variable'],
-    argumentHint: '<variable_name> [--type <chart_type>]',
+    argumentHint: '<variable_name> [chart_type]',
+    args: [
+      { name: 'variable_name', type: 'string', description: 'The data variable to visualize', required: true },
+      { name: 'chart_type', type: 'string', description: 'Optional chart type (scatter, bar, histogram, line, etc.)' },
+    ],
     whenToUse: 'When user wants to visualize data or explore relationships',
     source: 'bundled',
-    directory: '/skills/bundled/viz'
+    directory: '/skills/bundled/viz',
   },
   {
     name: 'model',
@@ -355,20 +405,27 @@ export const BUNDLED_SKILLS: SkillDefinition[] = [
     content: MODEL_SKILL,
     allowedTools: ['execute_python_code', 'inspect_variable'],
     argumentHint: '<target_variable>',
+    args: [
+      { name: 'target_variable', type: 'string', description: 'The target variable to predict', required: true },
+    ],
     whenToUse: 'When user wants to build predictive models',
     source: 'bundled',
-    directory: '/skills/bundled/model'
+    directory: '/skills/bundled/model',
   },
   {
     name: 'debug',
     description: 'Code Debugging Assistant',
     content: DEBUG_SKILL,
     allowedTools: ['execute_python_code', 'inspect_variable'],
-    argumentHint: '<error_message_or_code>',
+    argumentHint: '[error_context]',
+    args: [
+      { name: 'error_context', type: 'string', description: 'The error message or code snippet to debug' },
+    ],
     whenToUse: 'When code execution fails or produces unexpected results',
+    paths: ['**/*.py'],
     source: 'bundled',
-    directory: '/skills/bundled/debug'
-  }
+    directory: '/skills/bundled/debug',
+  },
 ];
 
 export function getBundledSkills(): SkillDefinition[] {

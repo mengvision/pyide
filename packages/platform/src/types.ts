@@ -33,11 +33,20 @@ export interface KernelStartInfo {
 /** Kernel connection status string. */
 export type KernelStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
 
-/** A skill entry loaded from disk or ClawHub. */
+/** A skill entry loaded from disk, ClawHub, or project directory. */
 export interface SkillEntry {
   name: string;
   path: string;
   content: string;
+  /** Supporting file paths relative to the skill directory (e.g. "scripts/setup.sh") */
+  supportFiles?: string[];
+}
+
+/** Result of installing a skill from a zip archive. */
+export interface InstallSkillResult {
+  skillName: string;
+  installPath: string;
+  supportFiles: string[];
 }
 
 /** MCP server runtime status. */

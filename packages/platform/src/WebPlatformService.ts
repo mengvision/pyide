@@ -12,6 +12,7 @@ import type {
   KernelStartInfo,
   KernelStatus,
   SkillEntry,
+  InstallSkillResult,
   MCPServerStatus,
 } from './types';
 
@@ -167,8 +168,22 @@ export class WebPlatformService implements PlatformService {
       );
     },
 
+    scanProjectSkills: async (workspacePath: string): Promise<SkillEntry[]> => {
+      return this.apiJson<SkillEntry[]>(
+        `/api/skills/project?workspacePath=${encodeURIComponent(workspacePath)}`,
+      );
+    },
+
     getUserSkillsDir: async (baseDir: string): Promise<string> => {
       return `${baseDir}/.pyide/skills`;
+    },
+
+    installFromZip: async (
+      _basePath: string,
+      _zipBytes: number[],
+      _fileName: string,
+    ): Promise<InstallSkillResult> => {
+      throw new Error('Zip skill installation is not supported in web mode');
     },
   };
 

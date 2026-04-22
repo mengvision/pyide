@@ -1,7 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useEnvStore } from '../../stores/envStore';
+import { useEnvStore, type VenvInfo } from '../../stores/envStore';
 import { useKernelContext } from '../../contexts/KernelContext';
 import styles from './EnvSelector.module.css';
+
+// System Python option - when path is empty, Rust backend will use system default
+const SYSTEM_PYTHON: VenvInfo = {
+  name: 'System Python',
+  path: '',
+  pythonVersion: '',
+};
 
 interface CreateVenvFormProps {
   onConfirm: (name: string, pythonVersion: string) => void;
@@ -122,9 +129,10 @@ export function EnvSelector({ projectPath, onCreateVenv }: EnvSelectorProps) {
     [onCreateVenv],
   );
 
-  const label = activeVenv
+  // Label: show active venv name, or "System Python" for system default, or "no env"
+  const label = activeVenv?.path
     ? `${activeVenv.name} (${activeVenv.pythonVersion.replace('Python ', '')})`
-    : 'no env';
+    : activeVenv?.name || 'no env';
 
   return (
     <div className={styles.container} ref={containerRef}>
@@ -152,8 +160,25 @@ export function EnvSelector({ projectPath, onCreateVenv }: EnvSelectorProps) {
             <>
               <div className={styles.dropdownHeader}>Python Environments</div>
 
+              {/* System Python option - always at the top */}
+              <button
+                key="system-python"
+                className={`${styles.venvItem} ${!activeVenv?.path ? styles.venvItemActive : ''}`}
+                onClick={() => selectVenv(SYSTEM_PYTHON)}
+              >
+                <span className={styles.venvName}>
+                  <span style={{ marginRight: '6px' }}>🐍</span>
+                  {SYSTEM_PYTHON.name}
+                </span>
+                {!activeVenv?.path && (
+                  <span className={styles.activeIndicator}>✓</span>
+                )}
+              </button>
+
               {venvs.length === 0 && (
-                <div className={styles.emptyMsg}>No environments found</div>
+                <div className={styles.emptyMsg} style={{ fontSize: '11px', padding: '4px 8px' }}>
+                  No venvs found
+                </div>
               )}
 
               {venvs.map((venv) => (

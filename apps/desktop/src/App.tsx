@@ -15,6 +15,7 @@ import { refreshToken, authFetch } from './utils/authApi';
 import { usePlatform } from '@pyide/platform';
 import { initSkillPlatform } from './services/SkillService';
 import { mcpClient } from './services/MCPService/client';
+import { initializeMCPConnections } from './services/MCPService/mcpInitializer';
 
 function App() {
   const platform = usePlatform();
@@ -35,6 +36,11 @@ function App() {
     initSettingsPlatform(platform);
     initSkillPlatform(platform);
     mcpClient.setPlatform(platform);
+
+    // Initialize MCP connections at startup (not deferred to MCPPanel)
+    initializeMCPConnections(platform).catch((err) => {
+      console.error('[App] Failed to initialize MCP connections:', err);
+    });
   }, [platform]);
 
   // Schedule token refresh ~1 min before 15-min expiry (i.e., every 14 min)

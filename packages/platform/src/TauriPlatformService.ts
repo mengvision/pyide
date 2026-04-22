@@ -13,6 +13,7 @@ import type {
   KernelStartInfo,
   KernelStatus,
   SkillEntry,
+  InstallSkillResult,
   MCPServerStatus,
 } from './types';
 
@@ -136,10 +137,24 @@ export class TauriPlatformService implements PlatformService {
     scanClawHubSkills: (basePath: string): Promise<SkillEntry[]> =>
       invoke<SkillEntry[]>('scan_clawhub_skills', { basePath }),
 
+    scanProjectSkills: (workspacePath: string): Promise<SkillEntry[]> =>
+      invoke<SkillEntry[]>('scan_project_skills', { workspacePath }),
+
     getUserSkillsDir: async (baseDir: string): Promise<string> => {
       // The user skills dir is ~/.pyide/skills/
       return `${baseDir}/.pyide/skills`;
     },
+
+    installFromZip: (
+      basePath: string,
+      zipBytes: number[],
+      fileName: string,
+    ): Promise<InstallSkillResult> =>
+      invoke<InstallSkillResult>('install_skill_from_zip', {
+        basePath,
+        zipBytes,
+        fileName,
+      }),
   };
 
   // ── MCP Server Integration ──────────────────────────────────────────────────

@@ -44,7 +44,9 @@ pub fn run() {
             // Skill system commands
             skills::scan_skill_directories,
             skills::scan_clawhub_skills,
+            skills::scan_project_skills,
             skills::get_user_skills_directory,
+            skills::install_skill_from_zip,
             // MCP commands
             mcp::start_mcp_server,
             mcp::stop_mcp_server,

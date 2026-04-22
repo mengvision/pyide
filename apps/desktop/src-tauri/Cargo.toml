@@ -19,3 +19,4 @@ tokio = { version = "1", features = ["full"] }
 rfd = "0.14"
 dirs = "5"
 lazy_static = "1.4"
+zip = "2"

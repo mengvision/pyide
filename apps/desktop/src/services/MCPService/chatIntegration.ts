@@ -17,14 +17,18 @@ export interface ToolExecutionResult {
   error?: string;
 }
 
-/** Callback used in Assist mode to ask the user for confirmation before running a tool */
+/** Callback used in Agent mode to ask the user for confirmation before running a tool */
 export type ToolConfirmCallback = (call: ToolCall) => Promise<boolean>;
 
 export class MCPChatIntegration {
   /**
    * Get all available MCP tools formatted for AI system prompt.
+   *
+   * @param allowedTools - Optional whitelist of tool names. When provided (non-empty),
+   *   only tools matching the whitelist are included. When empty/undefined, all tools
+   *   are shown (no restriction). The filter uses "server.tool" format matching.
    */
-  async getAvailableToolsForAI(): Promise<string> {
+  async getAvailableToolsForAI(allowedTools?: string[]): Promise<string> {
     const connections = mcpClient.getAllConnections();
     const connectedServers = connections.filter((c) => c.status === 'connected');
 
@@ -32,17 +36,39 @@ export class MCPChatIntegration {
       return '';
     }
 
+    // Build a set for fast lookup if allowedTools is provided
+    const allowedSet = allowedTools && allowedTools.length > 0
+      ? new Set(allowedTools)
+      : null;
+
     const parts: string[] = ['\n\n=== AVAILABLE MCP TOOLS ==='];
+
+    if (allowedSet) {
+      parts.push('\nNote: Some tools are restricted by the active skill. Only whitelisted tools are available.');
+    }
+
     parts.push('\nYou have access to the following MCP servers and tools. Use them when the user asks about data, metadata, lineage, or related operations.');
 
+    let hasAnyTool = false;
+
     for (const connection of connectedServers) {
-      if (connection.tools.length > 0) {
+      // Filter tools based on allowedTools whitelist
+      const filteredTools = allowedSet
+        ? connection.tools.filter((tool) => {
+            // Match "server.tool" or just "tool" against the whitelist
+            const fullName = `${connection.serverName}.${tool.name}`;
+            return allowedSet.has(fullName) || allowedSet.has(tool.name);
+          })
+        : connection.tools;
+
+      if (filteredTools.length > 0) {
+        hasAnyTool = true;
         parts.push(`\n## Server: ${connection.serverName}`);
         parts.push(`You can use tools from the "${connection.serverName}" server by responding with:`);
         parts.push(`[TOOL_CALL: ${connection.serverName}.tool_name({"arg1": "value1", "arg2": "value2"})]`);
 
         parts.push('\n### Available Tools:');
-        for (const tool of connection.tools) {
+        for (const tool of filteredTools) {
           parts.push(`\n#### ${tool.name}`);
           parts.push(`**Description:** ${tool.description}`);
           if (tool.inputSchema && tool.inputSchema.properties) {
@@ -59,6 +85,10 @@ export class MCPChatIntegration {
       }
     }
 
+    if (!hasAnyTool) {
+      return '';
+    }
+
     parts.push('\n\n### Usage Examples:');
     parts.push('- To search for data: [TOOL_CALL: datahub.search({"query": "revenue_*"})]');
     parts.push('- To get lineage: [TOOL_CALL: datahub.get_lineage({"urn": "urn:li:dataset:...", "direction": "DOWNSTREAM"})]');
@@ -73,8 +103,8 @@ export class MCPChatIntegration {
    * Execute a single tool call respecting permissions and chat mode.
    *
    * @param call        The parsed tool call.
-   * @param chatMode    Current chat mode ('chat' | 'assist' | 'agent').
-   * @param onConfirm   Callback shown in 'assist' mode when permission is 'ask'.
+   * @param chatMode    Current chat mode ('chat' | 'agent').
+   * @param onConfirm   Callback shown in 'agent' mode when permission is 'ask'.
    *                    Return true to proceed, false to skip.
    */
   async executeToolCall(
@@ -82,12 +112,12 @@ export class MCPChatIntegration {
     chatMode: ChatMode = 'chat',
     onConfirm?: ToolConfirmCallback,
   ): Promise<ToolExecutionResult> {
-    // In pure 'chat' mode tools are informational only — never auto-execute.
+    // In 'chat' mode tools are informational only — never execute.
     if (chatMode === 'chat') {
       return {
         call,
         result: null,
-        error: 'Tool execution is disabled in Chat mode. Switch to Assist or Agent mode to run tools.',
+        error: 'Tool execution is disabled in Chat mode. Switch to Agent mode to run tools.',
       };
     }
 
@@ -102,8 +132,8 @@ export class MCPChatIntegration {
       };
     }
 
-    // In Assist mode, tools with 'ask' permission require confirmation
-    if (chatMode === 'assist' && permission === 'ask' && onConfirm) {
+    // In Agent mode, tools with 'ask' permission require user confirmation
+    if (permission === 'ask' && onConfirm) {
       const confirmed = await onConfirm(call);
       if (!confirmed) {
         return {

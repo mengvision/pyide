@@ -4,17 +4,18 @@ import { useKernelStore } from '../../stores/kernelStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useChatStore } from '../../stores/chatStore';
+import { useMCPStore } from '../../stores/mcpStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
-import { ToolConfirmDialog } from './ToolConfirmDialog';
+import { ToolConfirmCard } from './ToolConfirmDialog';
+import { setMCPPermission } from '../../services/MCPService/permissions';
 import type { ToolCall } from '../../utils/toolCallParser';
 import type { ChatMode } from '../../stores/chatStore';
 import styles from './AIChatPanel.module.css';
 
 const MODES: { key: ChatMode; label: string; title: string }[] = [
   { key: 'chat', label: 'Chat', title: 'AI suggests only — no tool execution' },
-  { key: 'assist', label: 'Assist', title: 'Read-only tools auto; write tools ask for confirmation' },
-  { key: 'agent', label: 'Agent', title: 'Full auto-execution of all tools' },
+  { key: 'agent', label: 'Agent', title: 'Tools execute with user confirmation' },
 ];
 
 export function AIChatPanel() {
@@ -23,7 +24,7 @@ export function AIChatPanel() {
   const resolveRef = useRef<((allowed: boolean) => void) | null>(null);
 
   /**
-   * Called by useChat when a tool needs user approval (Assist mode).
+   * Called by useChat when a tool needs user approval (Agent mode).
    * Returns a promise that resolves when the user clicks Allow/Deny.
    */
   const onConfirm = useCallback((call: ToolCall): Promise<boolean> => {
@@ -33,11 +34,20 @@ export function AIChatPanel() {
     });
   }, []);
 
-  const handleAllow = useCallback(() => {
+  const handleAllowOnce = useCallback(() => {
     setPendingCall(null);
     resolveRef.current?.(true);
     resolveRef.current = null;
   }, []);
+
+  const handleAlwaysAllow = useCallback(() => {
+    if (pendingCall) {
+      setMCPPermission(pendingCall.server, pendingCall.tool, 'always_allow');
+    }
+    setPendingCall(null);
+    resolveRef.current?.(true);
+    resolveRef.current = null;
+  }, [pendingCall]);
 
   const handleDeny = useCallback(() => {
     setPendingCall(null);
@@ -60,6 +70,7 @@ export function AIChatPanel() {
   const agents = useChatStore((s) => s.agents);
   const totalTokenUsage = useChatStore((s) => s.totalTokenUsage);
   const runningAgents = agents.filter((a) => a.status === 'running');
+  const toolExecutions = useMCPStore((s) => s.toolExecutions);
 
   const lastError = useKernelStore((s) => s.lastError);
   const setLastError = useKernelStore((s) => s.setLastError);
@@ -72,10 +83,10 @@ export function AIChatPanel() {
 
   const hasConfig = !!(aiConfig.baseUrl && aiConfig.apiKey && aiConfig.modelId);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or a confirmation card appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, pendingCall]);
 
   // Handle lastError auto-fix when chat tab is active
   useEffect(() => {
@@ -172,6 +183,37 @@ export function AIChatPanel() {
             <span className={styles.dot} />
           </div>
         )}
+
+        {/* Tool execution status indicator */}
+        {toolExecutions.length > 0 && toolExecutions.some((t) => t.status === 'running') && (
+          <div className={styles.toolStatusCard}>
+            <div className={styles.toolStatusSpinner}>
+              <span className={styles.spinnerDot} />
+            </div>
+            <div className={styles.toolStatusText}>
+              {toolExecutions
+                .filter((t) => t.status === 'running')
+                .map((t) => (
+                  <span key={`${t.server}.${t.tool}`} className={styles.toolStatusItem}>
+                    🔧 {t.server}.{t.tool}
+                  </span>
+                ))}
+              <span className={styles.toolStatusLabel}>executing...</span>
+            </div>
+          </div>
+        )}
+        {toolExecutions.length > 0 && toolExecutions.every((t) => t.status === 'done') && (
+          <div className={styles.toolStatusCardDone}>
+            ✅ Tools completed: {toolExecutions.map((t) => `${t.server}.${t.tool}`).join(', ')}
+          </div>
+        )}
+        {/* Inline tool confirmation card (Agent mode) */}
+        <ToolConfirmCard
+          call={pendingCall}
+          onAllowOnce={handleAllowOnce}
+          onAlwaysAllow={handleAlwaysAllow}
+          onDeny={handleDeny}
+        />
         <div ref={messagesEndRef} />
       </div>
 
@@ -214,12 +256,6 @@ export function AIChatPanel() {
         )}
       </div>
 
-      {/* Tool confirmation dialog (Assist mode) */}
-      <ToolConfirmDialog
-        call={pendingCall}
-        onAllow={handleAllow}
-        onDeny={handleDeny}
-      />
     </div>
   );
 }

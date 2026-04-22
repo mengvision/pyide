@@ -1,29 +1,20 @@
 /**
- * ToolConfirmDialog
- * Modal confirmation dialog shown in Assist mode before executing an MCP tool.
+ * ToolConfirmCard
+ * Inline confirmation card embedded in the chat flow (Agent mode).
+ * Offers "Allow Once" and "Always Allow" options to reduce popup frequency.
  */
 
-import { useEffect, useRef } from 'react';
 import type { ToolCall } from '../../utils/toolCallParser';
 import styles from './ToolConfirmDialog.module.css';
 
 interface Props {
   call: ToolCall | null;
-  onAllow: () => void;
+  onAllowOnce: () => void;
+  onAlwaysAllow: () => void;
   onDeny: () => void;
 }
 
-export function ToolConfirmDialog({ call, onAllow, onDeny }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    if (call) {
-      dialogRef.current?.showModal();
-    } else {
-      dialogRef.current?.close();
-    }
-  }, [call]);
-
+export function ToolConfirmCard({ call, onAllowOnce, onAlwaysAllow, onDeny }: Props) {
   if (!call) return null;
 
   const argsStr = Object.keys(call.arguments).length
@@ -31,41 +22,38 @@ export function ToolConfirmDialog({ call, onAllow, onDeny }: Props) {
     : '(no arguments)';
 
   return (
-    <dialog ref={dialogRef} className={styles.dialog} onClose={onDeny}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <span className={styles.icon}>🔧</span>
-          <h3 className={styles.title}>Allow Tool Execution?</h3>
+    <div className={styles.card}>
+      <div className={styles.header}>
+        <span className={styles.icon}>🔧</span>
+        <span className={styles.title}>Allow tool execution?</span>
+      </div>
+
+      <div className={styles.details}>
+        <div className={styles.detailRow}>
+          <span className={styles.label}>Server</span>
+          <code className={styles.value}>{call.server}</code>
         </div>
-
-        <p className={styles.description}>
-          The AI wants to run a tool. Allow it?
-        </p>
-
-        <div className={styles.callDetails}>
-          <div className={styles.detailRow}>
-            <span className={styles.label}>Server</span>
-            <code className={styles.value}>{call.server}</code>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.label}>Tool</span>
-            <code className={styles.value}>{call.tool}</code>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.label}>Arguments</span>
-            <pre className={styles.args}>{argsStr}</pre>
-          </div>
+        <div className={styles.detailRow}>
+          <span className={styles.label}>Tool</span>
+          <code className={styles.value}>{call.tool}</code>
         </div>
-
-        <div className={styles.actions}>
-          <button className={styles.denyBtn} onClick={onDeny}>
-            Deny
-          </button>
-          <button className={styles.allowBtn} onClick={onAllow} autoFocus>
-            Allow
-          </button>
+        <div className={styles.detailRow}>
+          <span className={styles.label}>Arguments</span>
+          <pre className={styles.args}>{argsStr}</pre>
         </div>
       </div>
-    </dialog>
+
+      <div className={styles.actions}>
+        <button className={styles.denyBtn} onClick={onDeny}>
+          Deny
+        </button>
+        <button className={styles.allowOnceBtn} onClick={onAllowOnce} autoFocus>
+          Allow Once
+        </button>
+        <button className={styles.alwaysAllowBtn} onClick={onAlwaysAllow}>
+          Always Allow
+        </button>
+      </div>
+    </div>
   );
 }

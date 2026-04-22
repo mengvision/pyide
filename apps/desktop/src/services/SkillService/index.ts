@@ -1,14 +1,23 @@
 /**
  * Skill Service - Central skill management using Zustand
+ *
+ * Load priority: bundled > project > disk (user) > clawhub
+ * Display order: sorted by usage score (7-day half-life decay)
  */
 
 import { create } from 'zustand';
-import type { LoadedSkill } from '../../types/skill';
+import type { LoadedSkill, SkillArg } from '../../types/skill';
 import { getBundledSkills } from './bundledSkills';
 import type { PlatformService } from '@pyide/platform';
 import { parseSkillFrontmatter } from '../../utils/skillParser';
+import {
+  parseArgumentNames,
+  substituteArguments,
+  buildArgumentHint,
+} from '../../utils/argumentSubstitution';
 import { downloadSkill, getSkillDetails } from './clawhub';
 import { addToLockFile, removeFromLockFile, setLockFilePlatform } from './lockfile';
+import { getSkillUsageScore } from './usageTracking';
 
 // Platform instance injected at app startup via initSkillPlatform()
 let _platform: PlatformService | null = null;
@@ -19,6 +28,50 @@ export function initSkillPlatform(platform: PlatformService) {
   setLockFilePlatform(platform);
 }
 
+// ── Helper: build LoadedSkill from raw skill data ──────────────────
+
+function buildLoadedSkill(
+  raw: { name: string; path: string; content: string },
+  source: LoadedSkill['source'],
+  id: string,
+): LoadedSkill {
+  const parsed = parseSkillFrontmatter(raw.content);
+
+  // Normalize arguments: frontmatter → SkillArg[]
+  let args: SkillArg[] | undefined;
+  if (parsed.frontmatter.arguments) {
+    if (Array.isArray(parsed.frontmatter.arguments)) {
+      args = parsed.frontmatter.arguments;
+    } else if (typeof parsed.frontmatter.arguments === 'string') {
+      // "foo bar" → [{ name: "foo", type: "string" }, ...]
+      args = parsed.frontmatter.arguments
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(name => ({ name, type: 'string' as const }));
+    }
+  }
+
+  return {
+    name: parsed.frontmatter.name || raw.name,
+    description: parsed.frontmatter.description || 'Custom skill',
+    content: raw.content,
+    allowedTools: parsed.frontmatter.allowed_tools || [],
+    argumentHint: parsed.frontmatter.argument_hint ?? (args ? buildArgumentHint(args) : undefined),
+    args,
+    whenToUse: parsed.frontmatter.when_to_use,
+    paths: parsed.frontmatter.paths,
+    context: parsed.frontmatter.context,
+    hooks: parsed.frontmatter.hooks,
+    files: parsed.frontmatter.files,
+    source,
+    directory: raw.path,
+    id,
+    isActive: false,
+  };
+}
+
+// ── Store interface ────────────────────────────────────────────────
+
 interface SkillStore {
   skills: LoadedSkill[];
   activeSkills: string[];  // Skill IDs currently active
@@ -27,90 +80,106 @@ interface SkillStore {
   deactivateSkill: (skillId: string) => void;
   toggleSkill: (skillId: string) => void;
   getActiveSkillContent: () => string;
+  resolveSkillContent: (skillId: string, args?: string) => string;
+  getActiveAllowedTools: () => string[];
   isSkillActive: (skillId: string) => boolean;
+  getSkillById: (skillId: string) => LoadedSkill | undefined;
   installFromClawHub: (skillName: string) => Promise<boolean>;
   uninstallClawHubSkill: (skillName: string) => Promise<boolean>;
+  installFromZip: (file: File) => Promise<{ success: boolean; error?: string; skillName?: string }>;
 }
 
 export const useSkillStore = create<SkillStore>((set, get) => ({
   skills: [],
   activeSkills: [],
-  
+
   async loadSkills() {
     try {
-      // Load bundled skills
-      const bundled = getBundledSkills().map((skill, idx) => ({
+      // 1. Bundled skills (highest priority)
+      const bundled = getBundledSkills().map(skill => ({
         ...skill,
         id: `bundled-${skill.name}`,
-        isActive: false
+        isActive: false,
       }));
-      
-      // Load disk-based skills via platform
+
+      // 2. Project skills from [workspace]/.pyide/skills/
+      let projectSkills: LoadedSkill[] = [];
+      try {
+        if (_platform) {
+          // Use workspace path from uiStore for project-level skills
+          const { useUiStore } = await import('../../stores/uiStore');
+          const workspacePath = useUiStore.getState().workspacePath;
+          if (workspacePath) {
+            const rawProject = await _platform.skills.scanProjectSkills(workspacePath);
+            if (rawProject && Array.isArray(rawProject)) {
+              projectSkills = rawProject.map((skill) =>
+                buildLoadedSkill(skill, 'project', `project-${skill.name}`),
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load project skills:', error);
+      }
+
+      // 3. User skills from ~/.pyide/skills/user/
       let diskSkills: LoadedSkill[] = [];
       let homeDir = '';
       try {
         if (!_platform) throw new Error('Platform not initialized');
         homeDir = await _platform.file.getHomeDir();
         const rawSkills = await _platform.skills.scanUserSkills(homeDir) as any[];
-        
-        diskSkills = rawSkills.map((skill, idx) => {
-          const parsed = parseSkillFrontmatter(skill.content);
-          return {
-            name: parsed.frontmatter.name || skill.name,
-            description: parsed.frontmatter.description || 'User skill',
-            content: skill.content,
-            allowedTools: parsed.frontmatter.allowed_tools || [],
-            argumentHint: parsed.frontmatter.argument_hint,
-            whenToUse: parsed.frontmatter.when_to_use,
-            paths: parsed.frontmatter.paths,
-            source: 'disk' as const,
-            directory: skill.path,
-            id: `disk-${idx}`,
-            isActive: false
-          };
-        });
+
+        diskSkills = rawSkills.map((skill, idx) =>
+          buildLoadedSkill(skill, 'disk', `disk-${idx}`),
+        );
       } catch (error) {
         console.warn('Failed to load disk skills:', error);
       }
-      
-      // Load ClawHub-installed skills from .pyide/skills/ (flat .md files)
+
+      // 4. ClawHub-installed skills from ~/.pyide/skills/*.md
       let clawHubSkills: LoadedSkill[] = [];
       try {
         if (!_platform || !homeDir) throw new Error('Platform not initialized');
         const clawHubRaw = await _platform.skills.scanClawHubSkills(homeDir) as any[];
-        clawHubSkills = clawHubRaw.map((skill, idx) => {
-          const parsed = parseSkillFrontmatter(skill.content);
-          return {
-            name: parsed.frontmatter.name || skill.name,
-            description: parsed.frontmatter.description || 'ClawHub skill',
-            content: skill.content,
-            allowedTools: parsed.frontmatter.allowed_tools || [],
-            argumentHint: parsed.frontmatter.argument_hint,
-            whenToUse: parsed.frontmatter.when_to_use,
-            paths: parsed.frontmatter.paths,
-            source: 'clawhub' as const,
-            directory: skill.path,
-            id: `clawhub-${skill.name}`,
-            isActive: false
-          };
-        });
+        clawHubSkills = clawHubRaw.map((skill, _idx) =>
+          buildLoadedSkill(skill, 'clawhub', `clawhub-${skill.name}`),
+        );
       } catch {
         // clawhub dir may not exist yet — that's fine
       }
 
-      set({ skills: [...bundled, ...diskSkills, ...clawHubSkills] });
+      // Preserve activation state across reloads + add usage scores
+      const prevActive = get().activeSkills;
+      const allSkills = [...bundled, ...projectSkills, ...diskSkills, ...clawHubSkills];
+      const skillsWithState = allSkills.map(s => ({
+        ...s,
+        isActive: prevActive.includes(s.id),
+        usageScore: getSkillUsageScore(s.name),
+      }));
+
+      // Sort by usage score (descending) — bundled skills always first
+      skillsWithState.sort((a, b) => {
+        // Bundled skills always come first
+        if (a.source === 'bundled' && b.source !== 'bundled') return -1;
+        if (a.source !== 'bundled' && b.source === 'bundled') return 1;
+        // Within same source, sort by usage score
+        return (b.usageScore ?? 0) - (a.usageScore ?? 0);
+      });
+
+      set({ skills: skillsWithState });
     } catch (error) {
       console.error('Failed to load skills:', error);
       // Fallback to bundled skills only
-      const bundled = getBundledSkills().map((skill, idx) => ({
+      const bundled = getBundledSkills().map(skill => ({
         ...skill,
         id: `bundled-${skill.name}`,
-        isActive: false
+        isActive: false,
       }));
       set({ skills: bundled });
     }
   },
-  
+
   activateSkill(skillId) {
     set(state => {
       if (state.activeSkills.includes(skillId)) {
@@ -118,22 +187,22 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
       }
       return {
         activeSkills: [...state.activeSkills, skillId],
-        skills: state.skills.map(s => 
+        skills: state.skills.map(s =>
           s.id === skillId ? { ...s, isActive: true, lastUsed: new Date() } : s
-        )
+        ),
       };
     });
   },
-  
+
   deactivateSkill(skillId) {
     set(state => ({
       activeSkills: state.activeSkills.filter(id => id !== skillId),
-      skills: state.skills.map(s => 
+      skills: state.skills.map(s =>
         s.id === skillId ? { ...s, isActive: false } : s
-      )
+      ),
     }));
   },
-  
+
   toggleSkill(skillId) {
     const { isSkillActive, activateSkill, deactivateSkill } = get();
     if (isSkillActive(skillId)) {
@@ -142,22 +211,60 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
       activateSkill(skillId);
     }
   },
-  
+
   getActiveSkillContent() {
     const { skills, activeSkills } = get();
     const activeSkillContents = skills
       .filter(s => activeSkills.includes(s.id))
       .map(s => `## Skill: ${s.name}\n\n${s.content}`);
-    
+
     if (activeSkillContents.length === 0) {
       return '';
     }
-    
+
     return '\n\n---\n\n' + activeSkillContents.join('\n\n---\n\n');
   },
-  
+
+  /**
+   * Resolve skill content with argument substitution.
+   * Replaces $ARGUMENTS, $0, $name etc. with actual values.
+   */
+  resolveSkillContent(skillId: string, args?: string): string {
+    const skill = get().skills.find(s => s.id === skillId);
+    if (!skill) return '';
+
+    const argNames = skill.args
+      ? skill.args.map(a => a.name)
+      : parseArgumentNames(skill.argumentHint);
+
+    const markdownContent = parseSkillFrontmatter(skill.content).markdownContent;
+    return substituteArguments(markdownContent, args, true, argNames);
+  },
+
+  /**
+   * Get the union of allowedTools from all active skills.
+   * Returns empty array if no skills restrict tools (i.e., all tools allowed).
+   */
+  getActiveAllowedTools(): string[] {
+    const { skills, activeSkills } = get();
+    const active = skills.filter(s => activeSkills.includes(s.id));
+    const toolSets = active.filter(s => s.allowedTools && s.allowedTools.length > 0);
+
+    // If no active skill declares allowedTools, don't restrict
+    if (toolSets.length === 0) return [];
+
+    // Return union of all declared tool sets
+    const union = new Set<string>();
+    toolSets.forEach(s => s.allowedTools.forEach(t => union.add(t)));
+    return [...union];
+  },
+
   isSkillActive(skillId) {
     return get().activeSkills.includes(skillId);
+  },
+
+  getSkillById(skillId) {
+    return get().skills.find(s => s.id === skillId);
   },
 
   async installFromClawHub(skillName: string): Promise<boolean> {
@@ -210,6 +317,26 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
     } catch (error) {
       console.error('uninstallClawHubSkill error:', error);
       return false;
+    }
+  },
+
+  async installFromZip(file: File): Promise<{ success: boolean; error?: string; skillName?: string }> {
+    try {
+      if (!_platform) throw new Error('Platform not initialized');
+
+      const buffer = await file.arrayBuffer();
+      const zipBytes = Array.from(new Uint8Array(buffer));
+      const homeDir = await _platform.file.getHomeDir();
+
+      const result = await _platform.skills.installFromZip(homeDir, zipBytes, file.name);
+
+      // Reload skill list to pick up the new skill
+      await get().loadSkills();
+
+      return { success: true, skillName: result.skillName };
+    } catch (error) {
+      console.error('installFromZip error:', error);
+      return { success: false, error: (error as Error).message };
     }
   },
 }));

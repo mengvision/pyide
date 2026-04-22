@@ -6,11 +6,17 @@
 import type { PlatformService } from '@pyide/platform';
 import type { MCPTool, MCPConnection, MCPServerConfig } from '../../types/mcp';
 import { JSONRPCClient } from './jsonRpcClient';
+import { useMCPStore } from '../../stores/mcpStore';
 
 class MCPClient {
   private connections: Map<string, MCPConnection> = new Map();
   private jsonRpcClients: Map<string, JSONRPCClient> = new Map();
   private platform: PlatformService | null = null;
+
+  /** Sync current connections to mcpStore after mutations. */
+  private syncToStore(): void {
+    useMCPStore.getState().setConnections(Array.from(this.connections.values()));
+  }
 
   /** Inject the platform instance once at startup. */
   setPlatform(platform: PlatformService) {
@@ -52,6 +58,24 @@ class MCPClient {
       await jsonRpcClient.startListening();
       console.log(`[MCPClient] Listening started: ${serverName}`);
       
+      // MCP protocol handshake: initialize + initialized notification
+      try {
+        console.log(`[MCPClient] Initializing MCP protocol for: ${serverName}`);
+        const initResponse = await jsonRpcClient.sendRequest('initialize', {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'PyIDE', version: '1.0.0' }
+        }, 10000); // 10s timeout for handshake
+        console.log(`[MCPClient] Initialize response from ${serverName}:`, initResponse);
+
+        // Send initialized notification (no response expected)
+        await jsonRpcClient.sendNotification('notifications/initialized');
+        console.log(`[MCPClient] MCP handshake complete for: ${serverName}`);
+      } catch (initError) {
+        console.warn(`[MCPClient] MCP handshake failed for ${serverName}:`, initError);
+        // Continue anyway — some servers may not strictly require handshake
+      }
+      
       // Discover tools via JSON-RPC with timeout
       let tools: MCPTool[] = [];
       try {
@@ -92,6 +116,9 @@ class MCPClient {
       });
       console.error(`[MCPClient] Failed to connect to MCP server ${serverName}:`, error);
     }
+    
+    // Sync to global store so UI components reflect the change
+    this.syncToStore();
   }
   
   /**
@@ -114,6 +141,9 @@ class MCPClient {
     } catch (error) {
       console.error(`Failed to disconnect from MCP server ${serverName}:`, error);
     }
+    
+    // Sync to global store
+    this.syncToStore();
   }
   
   /**

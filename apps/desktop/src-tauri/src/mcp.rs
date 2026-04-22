@@ -70,18 +70,20 @@ pub async fn start_mcp_server(
 
 #[tauri::command]
 pub async fn stop_mcp_server(name: String) -> Result<(), String> {
-    let mut servers = MCP_SERVERS.lock().await;
-    
-    if let Some(server) = servers.remove(&name) {
-        if let Some(child_arc) = server.child {
-            let mut child = child_arc.lock().await;
-            // Try to kill the process
-            let _ = child.kill();
+    // Remove from HashMap and extract child — release global lock before killing
+    let child_arc = {
+        let mut servers = MCP_SERVERS.lock().await;
+        match servers.remove(&name) {
+            Some(server) => server.child,
+            None => return Err(format!("Server {} not found", name)),
         }
-        Ok(())
-    } else {
-        Err(format!("Server {} not found", name))
+    }; // Global lock released here
+
+    if let Some(child_arc) = child_arc {
+        let mut child = child_arc.lock().await;
+        let _ = child.kill();
     }
+    Ok(())
 }
 
 #[tauri::command]
@@ -110,51 +112,66 @@ pub async fn send_mcp_message(
     server_name: String,
     message: String,
 ) -> Result<(), String> {
-    let servers = MCP_SERVERS.lock().await;
-    
-    if let Some(server) = servers.get(&server_name) {
-        if let Some(channels_arc) = &server.channels {
-            let channels = channels_arc.lock().await;
-            
-            if let Some(stdin_arc) = &channels.stdin {
-                let mut stdin = stdin_arc.lock().await;
-                
-                // Write message with newline delimiter
-                stdin.write_all(message.as_bytes())
-                    .map_err(|e| format!("Failed to write to {}: {}", server_name, e))?;
-                stdin.flush()
-                    .map_err(|e| format!("Failed to flush {}: {}", server_name, e))?;
-                
-                return Ok(());
+    // Quickly clone the stdin Arc while holding locks, then release all locks before I/O
+    let stdin_arc = {
+        let servers = MCP_SERVERS.lock().await;
+        match servers.get(&server_name) {
+            Some(server) => {
+                let channels_arc = server.channels.clone();
+                drop(servers); // Release global lock (L1) before acquiring per-server lock
+                let channels = channels_arc
+                    .as_ref()
+                    .ok_or_else(|| format!("Server {} channels not initialized", server_name))?
+                    .lock().await;
+                channels.stdin.clone() // Clone Arc (cheap), will release L2 after this block
             }
+            None => return Err(format!("Server {} not found", server_name)),
         }
-        Err(format!("No stdin channel for server {}", server_name))
+    }; // L1 + L2 locks released here — read_mcp_message can proceed freely
+
+    if let Some(stdin_arc) = stdin_arc {
+        let mut stdin = stdin_arc.lock().await; // Only lock L3a (stdin)
+
+        stdin.write_all(message.as_bytes())
+            .map_err(|e| format!("Failed to write to {}: {}", server_name, e))?;
+        stdin.flush()
+            .map_err(|e| format!("Failed to flush {}: {}", server_name, e))?;
+
+        Ok(())
     } else {
-        Err(format!("Server {} not found", server_name))
+        Err(format!("No stdin channel for server {}", server_name))
     }
 }
 
 /// Read a line from an MCP server's stdout
 #[tauri::command]
 pub async fn read_mcp_message(server_name: String) -> Result<String, String> {
-    let servers = MCP_SERVERS.lock().await;
-    
-    if let Some(server) = servers.get(&server_name) {
-        if let Some(channels_arc) = &server.channels {
-            let channels = channels_arc.lock().await;
-            
-            if let Some(stdout_arc) = &channels.stdout {
-                let mut stdout = stdout_arc.lock().await;
-                
-                let mut line = String::new();
-                stdout.read_line(&mut line)
-                    .map_err(|e| format!("Failed to read from {}: {}", server_name, e))?;
-                
-                return Ok(line);
+    // Quickly clone the stdout Arc while holding locks, then release all locks before blocking I/O
+    let stdout_arc = {
+        let servers = MCP_SERVERS.lock().await;
+        match servers.get(&server_name) {
+            Some(server) => {
+                let channels_arc = server.channels.clone();
+                drop(servers); // Release global lock (L1) before acquiring per-server lock
+                let channels = channels_arc
+                    .as_ref()
+                    .ok_or_else(|| format!("Server {} channels not initialized", server_name))?
+                    .lock().await;
+                channels.stdout.clone() // Clone Arc (cheap), will release L2 after this block
             }
+            None => return Err(format!("Server {} not found", server_name)),
         }
-        Err(format!("No stdout channel for server {}", server_name))
+    }; // L1 + L2 locks released here — send_mcp_message can proceed freely
+
+    if let Some(stdout_arc) = stdout_arc {
+        let mut stdout = stdout_arc.lock().await; // Only lock L3b (stdout)
+
+        let mut line = String::new();
+        stdout.read_line(&mut line)
+            .map_err(|e| format!("Failed to read from {}: {}", server_name, e))?;
+
+        Ok(line)
     } else {
-        Err(format!("Server {} not found", server_name))
+        Err(format!("No stdout channel for server {}", server_name))
     }
 }

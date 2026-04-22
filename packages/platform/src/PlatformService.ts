@@ -10,6 +10,7 @@ import type {
   KernelStartInfo,
   KernelStatus,
   SkillEntry,
+  InstallSkillResult,
   MCPServerStatus,
 } from './types';
 
@@ -74,8 +75,12 @@ export interface PlatformService {
     scanUserSkills(basePath: string): Promise<SkillEntry[]>;
     /** Scan the ClawHub-installed skills directory. */
     scanClawHubSkills(basePath: string): Promise<SkillEntry[]>;
+    /** Scan project-level skills from [workspace]/.pyide/skills/ */
+    scanProjectSkills(workspacePath: string): Promise<SkillEntry[]>;
     /** Return the absolute path to the user skills directory, creating it if needed. */
     getUserSkillsDir(baseDir: string): Promise<string>;
+    /** Install a skill from a zip archive into ~/.pyide/skills/user/. */
+    installFromZip(basePath: string, zipBytes: number[], fileName: string): Promise<InstallSkillResult>;
   };
 
   // ── MCP Server Integration ──────────────────────────────────────────────────

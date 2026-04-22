@@ -1,27 +1,58 @@
 .skills-panel {
-  padding: 16px;
+  padding: 12px;
   height: 100%;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+/* ── Header ─────────────────────────────────────────────────────── */
 
 .skills-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
 }
 
 .skills-panel-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.create-skill-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.create-skill-btn:hover {
+  border-color: var(--accent-color);
+  background: var(--bg-tertiary);
 }
 
 .clawhub-open-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 8px;
   font-size: 12px;
   font-weight: 600;
   border-radius: 6px;
@@ -30,7 +61,6 @@
   color: var(--text-primary);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
-  white-space: nowrap;
 }
 
 .clawhub-open-btn:hover {
@@ -38,20 +68,42 @@
   background: var(--bg-tertiary);
 }
 
-/* Legacy h3 used in older JSX — keep for safety */
-.skills-panel > h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 600;
+/* ── Search ─────────────────────────────────────────────────────── */
+
+.skills-search {
+  position: relative;
 }
 
+.skills-search-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.skills-search-input:focus {
+  border-color: var(--accent-color);
+}
+
+.skills-search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ── Sections ───────────────────────────────────────────────────── */
+
 .skill-section {
-  margin-bottom: 24px;
+  margin-bottom: 4px;
 }
 
 .skill-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 8px 0;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -61,38 +113,42 @@
 .skill-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
+
+/* ── Skill Card ─────────────────────────────────────────────────── */
 
 .skill-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   transition: all 0.2s ease;
+  cursor: default;
 }
 
 .skill-card:hover {
   border-color: var(--accent-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .skill-card.active {
   border-color: var(--success-color);
-  background: rgba(var(--success-rgb), 0.05);
+  background: rgba(var(--success-rgb, 34, 197, 94), 0.04);
 }
 
 .skill-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .skill-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .skill-actions {
@@ -101,9 +157,45 @@
   gap: 4px;
 }
 
+.skill-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.skill-source {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.skill-source.clawhub {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-color);
+}
+
+.skill-source.project {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success-color);
+}
+
+/* Auto-activate badge */
+.skill-auto-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #3B82F6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .uninstall-btn {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background: transparent;
@@ -111,39 +203,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
   transition: all 0.15s;
 }
 
 .uninstall-btn:hover {
-  border-color: var(--error-color, #e53e3e);
-  color: var(--error-color, #e53e3e);
-  background: rgba(229, 62, 62, 0.06);
-}
-
-.skill-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.skill-source {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  text-transform: capitalize;
-}
-
-.skill-source.clawhub {
-  background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
-  color: var(--accent-color);
+  border-color: var(--error-color, #EF4444);
+  color: var(--error-color, #EF4444);
+  background: rgba(239, 68, 68, 0.06);
 }
 
 .toggle-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: 2px solid var(--border-color);
   border-radius: 50%;
   background: transparent;
@@ -151,7 +224,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 12px;
   transition: all 0.2s ease;
   color: var(--text-secondary);
 }
@@ -168,70 +241,439 @@
 }
 
 .skill-description {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-primary);
-}
-
-.skill-when-to-use {
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   font-size: 12px;
-  color: var(--text-secondary);
   line-height: 1.4;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
+/* Argument hint */
 .skill-hint {
-  margin: 0 0 8px 0;
-  font-size: 12px;
+  margin: 0 0 6px 0;
+  font-size: 11px;
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-mono, monospace);
 }
 
-.skill-tools {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-color);
-  font-size: 12px;
+.hint-args {
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
-.tool-tags {
+/* Usage frequency bar */
+.skill-usage-bar {
+  height: 2px;
+  background: var(--bg-tertiary);
+  border-radius: 1px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.skill-usage-fill {
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+  opacity: 0.5;
+}
+
+/* Path patterns */
+.skill-paths {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.path-tag {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #3B82F6;
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Tool tags */
+.skill-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
 }
 
 .tool-tag {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: 11px;
-  font-family: var(--font-mono);
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
 }
 
+/* ── Hint ───────────────────────────────────────────────────────── */
+
 .hint {
-  margin-top: 16px;
-  padding: 12px;
+  margin-top: 12px;
+  padding: 10px;
   background: var(--bg-secondary);
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
 .hint code {
   display: block;
   margin-top: 4px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   background: var(--bg-tertiary);
   border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
 }
 
 .loading {
   text-align: center;
-  padding: 32px;
+  padding: 24px;
   color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ── Skill Detail Modal ─────────────────────────────────────────── */
+
+.skill-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.skill-detail-modal {
+  background: #1E1E2E;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 520px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.skill-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.skill-detail-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.detail-close-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.detail-close-btn:hover {
+  border-color: var(--error-color, #EF4444);
+  color: var(--error-color, #EF4444);
+}
+
+.skill-detail-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.detail-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.detail-description {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.detail-section p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* Args table */
+.detail-args-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.detail-args-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.detail-args-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.arg-name {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-color);
+}
+
+/* Paths */
+.detail-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.detail-path {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #3B82F6;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Tools */
+.detail-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Files */
+.detail-files {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.detail-files li {
+  margin-bottom: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+/* Content preview */
+.detail-content {
+  margin: 0;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+/* Create new skill */
+.detail-create-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+}
+
+.detail-create-path {
+  display: block;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--accent-color);
+}
+
+.detail-template {
+  margin: 16px 0 0 0;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+
+.skill-detail-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-toggle-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.detail-toggle-btn.activate {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.detail-toggle-btn.activate:hover {
+  opacity: 0.9;
+}
+
+.detail-toggle-btn.deactivate {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.detail-toggle-btn.deactivate:hover {
+  border-color: var(--error-color, #EF4444);
+  color: var(--error-color, #EF4444);
+}
+
+/* ── Drop Zone Overlay ─────────────────────────────────────── */
+
+.drop-zone-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(137, 180, 250, 0.08);
+  border: 2px dashed var(--accent-color, #89B4FA);
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  animation: dropZoneFadeIn 0.15s ease-out;
+}
+
+@keyframes dropZoneFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-color, #89B4FA);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.drop-zone-icon {
+  font-size: 32px;
+  opacity: 0.8;
+}
+
+.drop-zone-text {
+  opacity: 0.9;
+}
+
+.skills-panel {
+  position: relative;
+}
+
+/* ── Install Toast ─────────────────────────────────────────── */
+
+.install-toast {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 110;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  animation: toastSlideIn 0.2s ease-out;
+  pointer-events: none;
+}
+
+.install-toast.success {
+  background: rgba(166, 227, 161, 0.12);
+  border: 1px solid rgba(166, 227, 161, 0.3);
+  color: var(--success-color, #A6E3A1);
+}
+
+.install-toast.error {
+  background: rgba(243, 139, 168, 0.12);
+  border: 1px solid rgba(243, 139, 168, 0.3);
+  color: var(--error-color, #F38BA8);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

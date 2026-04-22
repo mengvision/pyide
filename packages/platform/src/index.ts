@@ -10,6 +10,7 @@ export type {
   KernelStartInfo,
   KernelStatus,
   SkillEntry,
+  InstallSkillResult,
   MCPServerStatus,
 } from './types';
 export { PlatformProvider, usePlatform } from './PlatformContext';

@@ -42,13 +42,21 @@ fn find_available_port() -> Result<u16, String> {
 
 /// Find python executable path
 fn find_python(python_path: Option<String>) -> Result<String, String> {
+    // 1. If caller explicitly provided a path, validate and use it
     if let Some(path) = python_path {
         if !path.is_empty() {
-            return Ok(path);
+            let resolved = std::path::Path::new(&path);
+            if resolved.exists() {
+                println!("[kernel] Using provided Python path: {}", path);
+                return Ok(path);
+            } else {
+                // If path doesn't exist, fall through to other methods
+                println!("[kernel] Provided Python path does not exist: {}, trying alternatives", path);
+            }
         }
     }
 
-    // Check VIRTUAL_ENV environment variable first
+    // 2. Check VIRTUAL_ENV environment variable
     if let Ok(venv) = std::env::var("VIRTUAL_ENV") {
         #[cfg(windows)]
         let candidate = format!("{}\\Scripts\\python.exe", venv);
@@ -56,26 +64,61 @@ fn find_python(python_path: Option<String>) -> Result<String, String> {
         let candidate = format!("{}/bin/python", venv);
 
         if std::path::Path::new(&candidate).exists() {
+            println!("[kernel] Using Python from VIRTUAL_ENV: {}", candidate);
             return Ok(candidate);
         }
     }
 
-    // Try "python" in PATH (Windows typically uses "python")
+    // 3. Try common Python installation locations
     #[cfg(windows)]
     {
+        // Try py launcher first (allows python3 command to work regardless of install)
+        if Command::new("py").arg("-3").arg("--version").output().is_ok() {
+            println!("[kernel] Using py launcher (py -3)");
+            return Ok("py".to_string());
+        }
+
+        // Try "python" in PATH
         if Command::new("python").arg("--version").output().is_ok() {
+            println!("[kernel] Using 'python' from PATH");
             return Ok("python".to_string());
+        }
+
+        // Try py launcher with specific version
+        if Command::new("py").arg("--list-paths").output().is_ok() {
+            // Try common versioned pythons
+            for ver in &["3.11", "3.12", "3.10", "3.9"] {
+                let result = Command::new("py")
+                    .args(["-" , ver])
+                    .arg("--version")
+                    .output();
+                if result.is_ok() && result.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                    println!("[kernel] Using py launcher with Python {}", ver);
+                    return Ok(format!("py -{}", ver));
+                }
+            }
         }
     }
 
-    // Try "python3" on Unix
+    // 4. Try "python3" on Unix / macOS
     #[cfg(not(windows))]
     {
+        // Check for python3 first (most common on Unix)
         if Command::new("python3").arg("--version").output().is_ok() {
+            println!("[kernel] Using 'python3' from PATH");
             return Ok("python3".to_string());
         }
+        // Fall back to "python"
         if Command::new("python").arg("--version").output().is_ok() {
+            println!("[kernel] Using 'python' from PATH");
             return Ok("python".to_string());
+        }
+        // Try versioned python
+        for ver in &["python3.11", "python3.12", "python3.10", "python3.9"] {
+            if Command::new(ver).arg("--version").output().is_ok() {
+                println!("[kernel] Using {}", ver);
+                return Ok(ver.to_string());
+            }
         }
     }
 
@@ -131,6 +174,8 @@ pub fn start_kernel(
     let port = find_available_port()?;
     let python = find_python(python_path)?;
 
+    println!("[kernel] Starting pykernel with Python: {}", python);
+
     let mut cmd = Command::new(&python);
     cmd.arg("-m")
         .arg("pykernel")
@@ -139,34 +184,44 @@ pub fn start_kernel(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // Try to resolve pykernel_path to a valid absolute directory
-    let resolved = std::path::Path::new(&pykernel_path);
-    if resolved.is_absolute() && resolved.is_dir() {
-        cmd.current_dir(resolved);
-    } else if let Ok(abs) = std::fs::canonicalize(&pykernel_path) {
-        if abs.is_dir() {
-            cmd.current_dir(abs);
-        }
-    } else {
-        // Try resolving relative to the executable's location, walking up to find workspace root
-        if let Ok(exe) = std::env::current_exe() {
-            let mut search = exe.parent().map(|p| p.to_path_buf());
-            loop {
-                match search {
-                    Some(ref dir) => {
-                        let candidate = dir.join("packages").join("pykernel");
-                        if candidate.is_dir() {
-                            cmd.current_dir(candidate);
-                            break;
+    // pykernel_path can be:
+    // 1. Empty string - rely on pip-installed pykernel in the Python environment
+    // 2. Absolute path to pykernel source directory (for development)
+    // 3. Relative path from workspace root
+    if !pykernel_path.is_empty() {
+        let resolved = std::path::Path::new(&pykernel_path);
+        if resolved.is_absolute() && resolved.is_dir() {
+            cmd.current_dir(resolved);
+            println!("[kernel] Using pykernel from absolute path: {}", pykernel_path);
+        } else if let Ok(abs) = std::fs::canonicalize(&pykernel_path) {
+            if abs.is_dir() {
+                cmd.current_dir(&abs);
+                println!("[kernel] Using pykernel from resolved path: {:?}", abs);
+            } else {
+                println!("[kernel] pykernel path does not exist or not a directory: {}", pykernel_path);
+            }
+        } else {
+            // Try resolving relative to the executable's location, walking up to find workspace root
+            if let Ok(exe) = std::env::current_exe() {
+                let mut search = exe.parent().map(|p| p.to_path_buf());
+                loop {
+                    match search {
+                        Some(ref dir) => {
+                            let candidate = dir.join("packages").join("pykernel");
+                            if candidate.is_dir() {
+                                cmd.current_dir(&candidate);
+                                println!("[kernel] Found pykernel relative to exe: {:?}", candidate);
+                                break;
+                            }
+                            search = dir.parent().map(|p| p.to_path_buf());
                         }
-                        search = dir.parent().map(|p| p.to_path_buf());
+                        None => break,
                     }
-                    None => break,
                 }
             }
         }
-        // If still no current_dir set, that's OK — pykernel is pip-installed
-        // so `python -m pykernel` works from the default CWD
+    } else {
+        println!("[kernel] No pykernel_path provided, relying on pip-installed pykernel");
     }
 
     // Hide console window on Windows

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useChatStore } from '../stores/chatStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useKernelStore } from '../stores/kernelStore';
+import { useMCPStore } from '../stores/mcpStore';
 import { useKernelContext } from '../contexts/KernelContext';
 import { ChatEngine } from '../services/ChatEngine';
 import { buildSystemPrompt } from '../services/chatContext';
@@ -80,31 +81,48 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
     async (content: string) => {
       if (!engineRef.current) return;
 
+      // Intercept slash commands: /skillname [args]
+      // Activate the matching skill before sending to AI
+      const slashMatch = content.match(/^\/(\S+)(?:\s+(.*))?$/s);
+      if (slashMatch) {
+        const skillName = slashMatch[1];
+        const skillArgs = slashMatch[2];
+        try {
+          const { executeSkillTool } = await import('../services/SkillService/skillTool');
+          const result = executeSkillTool({ skill: skillName, args: skillArgs || undefined });
+          if (result.success) {
+            console.log(`[useChat] Activated skill "${result.skillName}" via slash command`);
+          }
+        } catch {
+          // Skill not found or activation failed — continue sending as normal text
+        }
+      }
+
       // Add user message to store
       chatStore.addMessage({ role: 'user', content });
 
       // Snapshot messages before adding the assistant placeholder
       const history = useChatStore.getState().messages;
 
-      // Build messages array: system prompt + history + current user message
-      const systemPrompt = buildSystemPrompt({ variables, connectionStatus });
+      // Build the full system prompt:
+      //   1. Kernel state (variables, connection status)
+      //   2. MCP tools description (Agent mode only), filtered by active skill's allowedTools
+      const baseSystemPrompt = buildSystemPrompt({ variables, connectionStatus });
 
-      // Append MCP tools description if in Assist or Agent mode
       let mcpToolsContext = '';
-      if (chatMode === 'assist' || chatMode === 'agent') {
-        mcpToolsContext = await mcpChatIntegration.getAvailableToolsForAI();
+      if (chatMode === 'agent') {
+        // Get allowed tools from active skills (empty = no restriction)
+        const { useSkillStore } = await import('../services/SkillService');
+        const allowedTools = useSkillStore.getState().getActiveAllowedTools();
+        mcpToolsContext = await mcpChatIntegration.getAvailableToolsForAI(allowedTools);
       }
+      const fullSystemPrompt = baseSystemPrompt + mcpToolsContext;
 
-      const baseMessages = [
-        {
-          role: 'system' as const,
-          content: systemPrompt + mcpToolsContext,
-        },
-        ...history.map((m) => ({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        })),
-      ];
+      // Build history messages only (no system message — ChatEngine handles that)
+      const historyMessages = history.map((m) => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
 
       // Add empty assistant message for streaming
       chatStore.addMessage({ role: 'assistant', content: '' });
@@ -116,8 +134,8 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
       const signal = abortRef.current.signal;
 
       // ── Tool-calling loop ──────────────────────────────────────────────────
-      // conversationMessages grows with each tool round.
-      let conversationMessages = [...baseMessages];
+      // conversationMessages grows with each tool round (history only, no system msg).
+      let conversationMessages = [...historyMessages];
       let round = 0;
 
       const runRound = async (): Promise<void> => {
@@ -126,18 +144,17 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
         let fullContent = '';
 
         await engine.sendMessage(
-          // Strip the leading system message — sendMessage builds its own
-          // system prompt via buildSystemPrompt. We pass the whole messages
-          // array here (the engine prepends a fresh system msg internally),
-          // so we pass WITHOUT the system msg at index 0 to avoid duplication.
-          conversationMessages.slice(1),
+          conversationMessages,
           (token) => {
             fullContent += token;
             chatStore.updateLastAssistantMessage(fullContent);
           },
           async (complete) => {
             // Cost accounting — also update AgentManager
-            const inputText = conversationMessages.map((m) => m.content).join('');
+            const inputText = [
+              fullSystemPrompt,
+              ...conversationMessages.map((m) => m.content),
+            ].join('');
             const inputTokens = engine.estimateTokens(inputText);
             const outputTokens = engine.estimateTokens(complete);
             chatStore.addCost(engine.estimateCost(inputTokens, outputTokens));
@@ -148,18 +165,47 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
             chatStore.setStreaming(false);
           },
           signal,
-          // Pass the system content as baseSystemPrompt so the engine injects it
-          conversationMessages[0].content,
+          // ChatEngine.buildSystemPrompt() wraps this with skills/memories/kernelState context
+          fullSystemPrompt,
         );
 
         if (signal.aborted) return;
 
-        // Parse tool calls from AI response (only in Assist/Agent modes)
-        if ((chatMode === 'assist' || chatMode === 'agent') && round < MAX_TOOL_ROUNDS) {
+        // Parse tool calls from AI response (only in Agent mode)
+        if (chatMode === 'agent' && round < MAX_TOOL_ROUNDS) {
+          // Pre-parse to set 'running' state in mcpStore before execution
+          const { parseToolCalls } = await import('../utils/toolCallParser');
+          const toolCalls = parseToolCalls(fullContent);
+
+          if (toolCalls.length > 0) {
+            // Mark all tools as running for UI feedback
+            for (const tc of toolCalls) {
+              useMCPStore.getState().setToolExecuting({
+                server: tc.server,
+                tool: tc.tool,
+                status: 'running',
+                timestamp: Date.now(),
+              });
+            }
+            chatStore.updateLastAssistantMessage(
+              `🔧 Calling ${toolCalls.map((t) => `${t.server}.${t.tool}`).join(', ')}...`,
+            );
+          }
+
           const { hasToolCalls, toolResults, cleanResponse } =
             await mcpChatIntegration.processToolCycle(fullContent, chatMode, onConfirm);
 
           if (hasToolCalls && toolResults) {
+            // Update tool states to 'done' in mcpStore
+            for (const tc of toolCalls) {
+              useMCPStore.getState().setToolExecuting({
+                server: tc.server,
+                tool: tc.tool,
+                status: 'done',
+                timestamp: Date.now(),
+              });
+            }
+
             // Update the displayed AI message with the clean version (no raw [TOOL_CALL:...])
             if (cleanResponse !== undefined) {
               chatStore.updateLastAssistantMessage(

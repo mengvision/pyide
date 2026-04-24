@@ -110,9 +110,23 @@ export function KernelProvider({ children }: KernelProviderProps) {
     // For local mode: start immediately
     // For remote mode: only start if authenticated (handled by App.tsx)
     if (kernelMode === 'local') {
-      kernel.startKernel().catch((err) => {
-        console.error('[KernelProvider] Failed to auto-start kernel:', err);
-      });
+      // Add a small delay to ensure Tauri backend is fully initialized
+      // This prevents race conditions where kernel.start() is called before
+      // the Rust commands are ready to handle them
+      const startupTimer = setTimeout(() => {
+        kernel.startKernel().catch((err) => {
+          console.error('[KernelProvider] Failed to auto-start kernel:', err);
+          // If auto-start fails, clear any stale state so next attempt works
+          kernel.stopKernel().catch(() => {
+            // Ignore cleanup errors
+          });
+        });
+      }, 500); // 500ms delay
+      
+      return () => {
+        clearTimeout(startupTimer);
+        kernel.stopKernel();
+      };
     }
     
     return () => {

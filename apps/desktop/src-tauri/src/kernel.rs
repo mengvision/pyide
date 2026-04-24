@@ -240,8 +240,8 @@ pub fn start_kernel(
     let ready = wait_for_kernel(port);
     if !ready {
         return Err(format!(
-            "Kernel did not start within 10 seconds on port {}",
-            port
+            "Kernel did not start within 10 seconds on port {}.\n\nPossible causes:\n1. pykernel module not installed in this Python environment\n   Solution: pip install -e packages/pykernel\n2. Python executable not found or wrong path\n3. Port {} is blocked or already in use",
+            port, port
         ));
     }
 

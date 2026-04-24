@@ -65,7 +65,15 @@ function useLocalKernel() {
 
     // Avoid double-starting
     if (clientRef.current && clientRef.current.status !== 'disconnected') {
+      console.log('[useLocalKernel] Kernel already connected, skipping start');
       return;
+    }
+
+    // Clean up any stale client from previous failed attempts
+    if (clientRef.current) {
+      console.log('[useLocalKernel] Cleaning up stale client before restart');
+      clientRef.current.disconnect();
+      clientRef.current = null;
     }
 
     // Get the active Python environment from envStore
@@ -162,6 +170,11 @@ function useLocalKernel() {
       }
     } catch (err) {
       console.error('[useLocalKernel] Failed to start kernel:', err);
+      // Clean up on failure
+      if (clientRef.current) {
+        clientRef.current.disconnect();
+        clientRef.current = null;
+      }
       if (useUiStore.getState().kernelMode === 'local') {
         setConnectionStatus('disconnected');
       }

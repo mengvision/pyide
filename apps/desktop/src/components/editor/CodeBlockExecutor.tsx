@@ -20,6 +20,7 @@ export default function CodeBlockExecutor({ executeCode, fileId, markdownContent
     if (!executeCode || !markdownContent) return;
 
     let isInjecting = false;
+    let debounceTimer: NodeJS.Timeout | null = null;
 
     const injectButtons = () => {
       if (isInjecting) return;
@@ -170,6 +171,7 @@ export default function CodeBlockExecutor({ executeCode, fileId, markdownContent
         }
       } finally {
         isInjecting = false;
+        // Re-enable observer after a longer delay to avoid excessive re-scans
         setTimeout(() => {
           if (observerRef.current && milkdownContainerRef.current) {
             observerRef.current.observe(milkdownContainerRef.current, {
@@ -177,8 +179,16 @@ export default function CodeBlockExecutor({ executeCode, fileId, markdownContent
               subtree: true,
             });
           }
-        }, 3000);
+        }, 5000);
       }
+    };
+
+    // Debounced injection handler to prevent excessive calls during typing
+    const handleMutation = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        injectButtons();
+      }, 1000); // Wait 1 second after last change before injecting
     };
 
     // Initial injection with retry
@@ -194,12 +204,10 @@ export default function CodeBlockExecutor({ executeCode, fileId, markdownContent
     };
     setTimeout(tryInject, 300);
 
-    // Setup MutationObserver
+    // Setup MutationObserver with debouncing
     milkdownContainerRef.current = document.querySelector('.milkdown');
     if (milkdownContainerRef.current) {
-      observerRef.current = new MutationObserver(() => {
-        setTimeout(injectButtons, 500);
-      });
+      observerRef.current = new MutationObserver(handleMutation);
       observerRef.current.observe(milkdownContainerRef.current, {
         childList: true,
         subtree: true,
@@ -210,6 +218,7 @@ export default function CodeBlockExecutor({ executeCode, fileId, markdownContent
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
+      if (debounceTimer) clearTimeout(debounceTimer);
     };
   }, [executeCode, fileId]);
 

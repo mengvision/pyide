@@ -37,7 +37,7 @@ export type SkillContext = 'inline' | 'fork';
 
 // ── Skill source ───────────────────────────────────────────────────
 
-export type SkillSource = 'bundled' | 'project' | 'disk' | 'clawhub';
+export type SkillSource = 'bundled' | 'project' | 'disk' | 'clawhub' | 'plugin' | 'managed' | 'mcp';
 
 // ── Core type definitions ──────────────────────────────────────────
 
@@ -53,6 +53,8 @@ export interface SkillDefinition {
   context?: SkillContext;    // Execution context: 'inline' (default) or 'fork'
   hooks?: SkillHooks;        // Lifecycle hooks
   files?: string[];          // Supporting file paths relative to skill directory
+  model?: string;            // Model override — e.g. "claude-sonnet-4-20250514"
+  triggers?: Record<string, unknown>;  // Auto-trigger configuration
   source: SkillSource;
   directory: string;         // Base directory of the skill
 }
@@ -78,6 +80,8 @@ export interface SkillFrontmatter {
   context?: 'inline' | 'fork';
   hooks?: SkillHooks;
   files?: string[];
+  model?: string;                        // Model override — e.g. "claude-sonnet-4-20250514"
+  triggers?: Record<string, unknown>;    // Auto-trigger configuration
 }
 
 // ── Skill usage tracking ───────────────────────────────────────────

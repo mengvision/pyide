@@ -110,11 +110,16 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
       const baseSystemPrompt = buildSystemPrompt({ variables, connectionStatus });
 
       let mcpToolsContext = '';
+      let skillModelOverride: string | undefined;
       if (chatMode === 'agent') {
         // Get allowed tools from active skills (empty = no restriction)
         const { useSkillStore } = await import('../services/SkillService');
-        const allowedTools = useSkillStore.getState().getActiveAllowedTools();
+        const skillStore = useSkillStore.getState();
+        const allowedTools = skillStore.getActiveAllowedTools();
         mcpToolsContext = await mcpChatIntegration.getAvailableToolsForAI(allowedTools);
+
+        // Resolve model override: skill > user > default
+        skillModelOverride = skillStore.getActiveModelOverride();
       }
       const fullSystemPrompt = baseSystemPrompt + mcpToolsContext;
 
@@ -167,6 +172,8 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
           signal,
           // ChatEngine.buildSystemPrompt() wraps this with skills/memories/kernelState context
           fullSystemPrompt,
+          // Model override from active skill (undefined = use default)
+          skillModelOverride,
         );
 
         if (signal.aborted) return;

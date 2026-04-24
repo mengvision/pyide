@@ -7,6 +7,7 @@ import type { PlatformService } from '@pyide/platform';
 import type { MCPTool, MCPConnection, MCPServerConfig } from '../../types/mcp';
 import { JSONRPCClient } from './jsonRpcClient';
 import { useMCPStore } from '../../stores/mcpStore';
+import { clearMCPSkillsForServer } from '../SkillService/mcpSkillDiscovery';
 
 class MCPClient {
   private connections: Map<string, MCPConnection> = new Map();
@@ -137,6 +138,10 @@ class MCPClient {
       
       await platform.mcp.stopServer(serverName);
       this.connections.delete(serverName);
+      
+      // Clear MCP skill cache for this server
+      clearMCPSkillsForServer(serverName);
+      
       console.log(`MCP server ${serverName} disconnected`);
     } catch (error) {
       console.error(`Failed to disconnect from MCP server ${serverName}:`, error);

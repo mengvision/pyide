@@ -82,6 +82,14 @@ function normalizeFrontmatter(raw: Record<string, unknown>): SkillFrontmatter {
   // Files (supporting file list)
   fm.files = toStringArray(raw.files ?? raw.Files);
 
+  // Model override
+  fm.model = toString(raw.model ?? raw.Model);
+
+  // Triggers (auto-activation configuration)
+  if (raw.triggers && typeof raw.triggers === 'object') {
+    fm.triggers = raw.triggers as Record<string, unknown>;
+  }
+
   return fm;
 }
 

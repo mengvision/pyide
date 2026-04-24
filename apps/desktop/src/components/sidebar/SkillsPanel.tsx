@@ -111,7 +111,10 @@ export const SkillsPanel: React.FC = () => {
       bundled: [],
       project: [],
       disk: [],
+      plugin: [],
+      managed: [],
       clawhub: [],
+      mcp: [],
     };
     for (const skill of filteredSkills) {
       if (groups[skill.source]) {
@@ -125,10 +128,13 @@ export const SkillsPanel: React.FC = () => {
     bundled: 'Bundled',
     project: 'Project',
     disk: 'User',
+    plugin: 'Plugin',
+    managed: 'Managed',
     clawhub: 'ClawHub',
+    mcp: 'MCP',
   };
 
-  const sourceOrder = ['bundled', 'project', 'disk', 'clawhub'];
+  const sourceOrder = ['bundled', 'project', 'disk', 'plugin', 'managed', 'clawhub', 'mcp'];
 
   return (
     <div
@@ -221,7 +227,7 @@ export const SkillsPanel: React.FC = () => {
       )}
 
       {/* Hint for creating skills */}
-      {grouped.disk.length === 0 && grouped.clawhub.length === 0 && grouped.project.length === 0 && (
+      {grouped.disk.length === 0 && grouped.clawhub.length === 0 && grouped.project.length === 0 && grouped.plugin.length === 0 && grouped.managed.length === 0 && grouped.mcp.length === 0 && (
         <div className="hint">
           <p>Create custom skills in:</p>
           <code>~/.pyide/skills/user/</code>

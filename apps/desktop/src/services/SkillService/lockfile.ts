@@ -8,7 +8,7 @@ import type { PlatformService } from '@pyide/platform';
 export interface LockedSkill {
   name: string;
   version: string;
-  source: 'bundled' | 'disk' | 'clawhub';
+  source: 'bundled' | 'disk' | 'clawhub' | 'plugin' | 'managed';
   url?: string;
   integrity?: string;
   installed_at: string;

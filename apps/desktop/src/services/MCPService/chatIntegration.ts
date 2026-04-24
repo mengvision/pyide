@@ -100,7 +100,12 @@ export class MCPChatIntegration {
   }
 
   /**
-   * Execute a single tool call respecting permissions and chat mode.
+   * Execute a single tool call respecting permissions, chat mode, and skill hooks.
+   *
+   * Hook execution flow:
+   *   1. Execute PreToolUse hooks (may block or modify args)
+   *   2. Execute the tool (if not blocked)
+   *   3. Execute PostToolUse hooks (may modify result)
    *
    * @param call        The parsed tool call.
    * @param chatMode    Current chat mode ('chat' | 'agent').
@@ -119,6 +124,28 @@ export class MCPChatIntegration {
         result: null,
         error: 'Tool execution is disabled in Chat mode. Switch to Agent mode to run tools.',
       };
+    }
+
+    // ── PreToolUse hooks ─────────────────────────────────────────────────
+    let effectiveArgs = call.arguments;
+    try {
+      const { executePreToolUseHooks } = await import('../SkillService/skillHooks');
+      const preResult = await executePreToolUseHooks(call.tool, call.arguments, call.server);
+
+      if (preResult.blocked) {
+        return {
+          call,
+          result: null,
+          error: `Blocked by skill hook: ${preResult.reason || 'PreToolUse hook blocked execution'}`,
+        };
+      }
+
+      if (preResult.modifiedArgs) {
+        effectiveArgs = preResult.modifiedArgs;
+      }
+    } catch (hookError) {
+      console.warn('[MCPChatIntegration] PreToolUse hook execution failed:', hookError);
+      // Fail open — continue execution
     }
 
     // Check stored permission
@@ -146,7 +173,30 @@ export class MCPChatIntegration {
 
     // Execute via MCP client (JSON-RPC)
     try {
-      const result = await mcpClient.callTool(call.server, call.tool, call.arguments);
+      const result = await mcpClient.callTool(call.server, call.tool, effectiveArgs);
+
+      // ── PostToolUse hooks ───────────────────────────────────────────────
+      try {
+        const { executePostToolUseHooks } = await import('../SkillService/skillHooks');
+        const postResult = await executePostToolUseHooks(
+          call.tool,
+          effectiveArgs,
+          typeof result === 'string' ? result : JSON.stringify(result),
+          call.server,
+        );
+
+        if (postResult.suppressOutput) {
+          return { call, result: '*(output suppressed by skill hook)*' };
+        }
+
+        if (postResult.modifiedResult) {
+          return { call, result: postResult.modifiedResult };
+        }
+      } catch (hookError) {
+        console.warn('[MCPChatIntegration] PostToolUse hook execution failed:', hookError);
+        // Fail open — return original result
+      }
+
       return { call, result };
     } catch (err) {
       return {

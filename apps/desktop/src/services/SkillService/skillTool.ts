@@ -136,6 +136,10 @@ export function formatSkillListing(skills: LoadedSkill[], charBudget = 8000): st
 /**
  * Execute a skill tool invocation.
  * Called when the AI uses the "skill" MCP tool.
+ *
+ * Supports two execution modes:
+ *   - inline (default): Injects skill content into the system prompt
+ *   - fork: Executes the skill in an isolated sub-agent context
  */
 export function executeSkillTool(input: SkillToolInput): SkillToolOutput {
   const store = useSkillStore.getState();
@@ -167,6 +171,55 @@ export function executeSkillTool(input: SkillToolInput): SkillToolOutput {
     skillName: skill.name,
     content: resolvedContent,
   };
+}
+
+/**
+ * Execute a skill tool invocation with fork support.
+ * If the skill's context is 'fork', runs it in an isolated sub-agent.
+ * Otherwise, falls back to inline injection.
+ */
+export async function executeSkillToolAsync(
+  input: SkillToolInput,
+  userMessage?: string,
+): Promise<SkillToolOutput> {
+  const store = useSkillStore.getState();
+  const skillName = input.skill;
+
+  const skill = store.skills.find(
+    s => s.name.toLowerCase() === skillName.toLowerCase()
+  );
+
+  if (!skill) {
+    return {
+      success: false,
+      error: `Skill "${skillName}" not found. Available skills: ${store.skills.map(s => s.name).join(', ')}`,
+    };
+  }
+
+  // Check if this skill should be forked
+  const { shouldFork, executeSkillInFork } = await import('./skillFork');
+  if (shouldFork(skill)) {
+    const forkResult = await executeSkillInFork(skill, userMessage || '', input.args);
+
+    if (!forkResult.success) {
+      return {
+        success: false,
+        error: forkResult.error || 'Fork execution failed',
+      };
+    }
+
+    // For forked skills, activate the skill and return the summary
+    store.activateSkill(skill.id);
+
+    return {
+      success: true,
+      skillName: skill.name,
+      content: forkResult.summary,
+    };
+  }
+
+  // Inline execution (default)
+  return executeSkillTool(input);
 }
 
 /**

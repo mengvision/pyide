@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { searchSkills, type ClawHubSkill } from '../../services/SkillService/clawhub';
+import { searchSkills, getPopularSkills, getTrendingSkills, getLocalIndex, type ClawHubSkill } from '../../services/SkillService/clawhub';
 import { useSkillStore } from '../../services/SkillService';
 import './ClawHubDialog.css';
 
@@ -13,6 +13,7 @@ interface ClawHubDialogProps {
 }
 
 type InstallState = 'idle' | 'installing' | 'success' | 'error';
+type BrowseTab = 'popular' | 'trending' | 'search';
 
 export const ClawHubDialog: React.FC<ClawHubDialogProps> = ({ onClose }) => {
   const [query, setQuery] = useState('');
@@ -20,12 +21,58 @@ export const ClawHubDialog: React.FC<ClawHubDialogProps> = ({ onClose }) => {
   const [searching, setSearching] = useState(false);
   const [apiUnavailable, setApiUnavailable] = useState(false);
   const [installStates, setInstallStates] = useState<Record<string, InstallState>>({});
+  const [activeTab, setActiveTab] = useState<BrowseTab>('popular');
   const inputRef = useRef<HTMLInputElement>(null);
   const { installFromClawHub, skills: installedSkills } = useSkillStore();
 
   // Focus search input on mount
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  // Load popular skills on mount
+  useEffect(() => {
+    if (activeTab === 'popular') {
+      loadPopular();
+    } else if (activeTab === 'trending') {
+      loadTrending();
+    }
+  }, [activeTab]);
+
+  const loadPopular = useCallback(async () => {
+    setSearching(true);
+    setApiUnavailable(false);
+    try {
+      const skills = await getPopularSkills(20);
+      setResults(skills);
+      if (skills.length === 0) {
+        setApiUnavailable(true);
+        setResults(getLocalIndex());
+      }
+    } catch {
+      setApiUnavailable(true);
+      setResults(getLocalIndex());
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const loadTrending = useCallback(async () => {
+    setSearching(true);
+    setApiUnavailable(false);
+    try {
+      const skills = await getTrendingSkills(20);
+      setResults(skills);
+      if (skills.length === 0) {
+        setApiUnavailable(true);
+        setResults(getLocalIndex());
+      }
+    } catch {
+      setApiUnavailable(true);
+      setResults(getLocalIndex());
+    } finally {
+      setSearching(false);
+    }
   }, []);
 
   // Close on Escape
@@ -44,13 +91,13 @@ export const ClawHubDialog: React.FC<ClawHubDialogProps> = ({ onClose }) => {
       setApiUnavailable(false);
       return;
     }
+    setActiveTab('search');
     setSearching(true);
     setApiUnavailable(false);
     try {
       const found = await searchSkills(q.trim());
       setResults(found);
       if (found.length === 0) {
-        // Could be empty results OR unavailable — we treat both the same
         setApiUnavailable(true);
       }
     } catch {
@@ -105,6 +152,28 @@ export const ClawHubDialog: React.FC<ClawHubDialogProps> = ({ onClose }) => {
           {searching && <span className="search-spinner" />}
         </div>
 
+        {/* Browse tabs */}
+        <div className="clawhub-tabs">
+          <button
+            className={`clawhub-tab ${activeTab === 'popular' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('popular'); setQuery(''); }}
+          >
+            Popular
+          </button>
+          <button
+            className={`clawhub-tab ${activeTab === 'trending' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('trending'); setQuery(''); }}
+          >
+            Trending
+          </button>
+          <button
+            className={`clawhub-tab ${activeTab === 'search' ? 'active' : ''}`}
+            onClick={() => inputRef.current?.focus()}
+          >
+            Search
+          </button>
+        </div>
+
         {/* Body */}
         <div className="clawhub-body">
           {/* API unavailable notice */}
@@ -112,14 +181,14 @@ export const ClawHubDialog: React.FC<ClawHubDialogProps> = ({ onClose }) => {
             <div className="clawhub-notice">
               <span className="notice-icon">⚠</span>
               <div>
-                <strong>ClawHub is not yet live.</strong>
-                <p>The public API will be available once ClawHub launches. Skills you install manually via the filesystem still work.</p>
+                <strong>Showing built-in skill catalog.</strong>
+                <p>The ClawHub API is not reachable. Below are curated starter skills you can install manually.</p>
               </div>
             </div>
           )}
 
           {/* Empty search */}
-          {!query.trim() && !searching && (
+          {activeTab === 'search' && !query.trim() && !searching && (
             <div className="clawhub-empty">
               <span className="empty-icon">🔍</span>
               <p>Search for skills to install from ClawHub.</p>

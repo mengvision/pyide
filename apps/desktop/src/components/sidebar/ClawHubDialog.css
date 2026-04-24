@@ -116,6 +116,36 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Tabs ── */
+.clawhub-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 20px;
+  background: var(--bg-secondary);
+}
+
+.clawhub-tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.clawhub-tab:hover {
+  color: var(--text-primary);
+}
+
+.clawhub-tab.active {
+  color: var(--accent-color);
+  border-bottom-color: var(--accent-color);
+}
+
 /* ── Body ── */
 .clawhub-body {
   flex: 1;

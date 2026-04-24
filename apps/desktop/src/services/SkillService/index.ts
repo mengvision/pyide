@@ -1,7 +1,7 @@
 /**
  * Skill Service - Central skill management using Zustand
  *
- * Load priority: bundled > project > disk (user) > clawhub
+ * Load priority: bundled > project > disk (user) > plugin > managed > clawhub > mcp
  * Display order: sorted by usage score (7-day half-life decay)
  */
 
@@ -18,6 +18,9 @@ import {
 import { downloadSkill, getSkillDetails } from './clawhub';
 import { addToLockFile, removeFromLockFile, setLockFilePlatform } from './lockfile';
 import { getSkillUsageScore } from './usageTracking';
+import { getMCPSkills } from './mcpSkillDiscovery';
+import { loadPluginSkills, loadManagedSkills } from './pluginSkillLoader';
+import { promptSurvey } from './skillImprovementSurvey';
 
 // Platform instance injected at app startup via initSkillPlatform()
 let _platform: PlatformService | null = null;
@@ -63,6 +66,8 @@ function buildLoadedSkill(
     context: parsed.frontmatter.context,
     hooks: parsed.frontmatter.hooks,
     files: parsed.frontmatter.files,
+    model: parsed.frontmatter.model,
+    triggers: parsed.frontmatter.triggers,
     source,
     directory: raw.path,
     id,
@@ -82,6 +87,7 @@ interface SkillStore {
   getActiveSkillContent: () => string;
   resolveSkillContent: (skillId: string, args?: string) => string;
   getActiveAllowedTools: () => string[];
+  getActiveModelOverride: () => string | undefined;
   isSkillActive: (skillId: string) => boolean;
   getSkillById: (skillId: string) => LoadedSkill | undefined;
   installFromClawHub: (skillName: string) => Promise<boolean>;
@@ -149,9 +155,37 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
         // clawhub dir may not exist yet — that's fine
       }
 
+      // 5. MCP-discovered skills from connected MCP servers
+      let mcpSkills: LoadedSkill[] = [];
+      try {
+        mcpSkills = getMCPSkills();
+      } catch {
+        // MCP may not be initialized yet
+      }
+
+      // 6. Plugin skills from registered plugins
+      let pluginSkills: LoadedSkill[] = [];
+      try {
+        if (_platform) {
+          pluginSkills = await loadPluginSkills(_platform);
+        }
+      } catch {
+        // Plugin system may not be initialized
+      }
+
+      // 7. Managed skills from ~/.pyide/skills/managed/
+      let managedSkills: LoadedSkill[] = [];
+      try {
+        if (_platform) {
+          managedSkills = await loadManagedSkills(_platform);
+        }
+      } catch {
+        // Managed directory may not exist
+      }
+
       // Preserve activation state across reloads + add usage scores
       const prevActive = get().activeSkills;
-      const allSkills = [...bundled, ...projectSkills, ...diskSkills, ...clawHubSkills];
+      const allSkills = [...bundled, ...projectSkills, ...diskSkills, ...clawHubSkills, ...mcpSkills, ...pluginSkills, ...managedSkills];
       const skillsWithState = allSkills.map(s => ({
         ...s,
         isActive: prevActive.includes(s.id),
@@ -195,12 +229,17 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
   },
 
   deactivateSkill(skillId) {
+    const skill = get().skills.find(s => s.id === skillId);
     set(state => ({
       activeSkills: state.activeSkills.filter(id => id !== skillId),
       skills: state.skills.map(s =>
         s.id === skillId ? { ...s, isActive: false } : s
       ),
     }));
+    // Prompt for improvement survey after deactivation
+    if (skill) {
+      try { promptSurvey(skill); } catch { /* non-critical */ }
+    }
   },
 
   toggleSkill(skillId) {
@@ -257,6 +296,18 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
     const union = new Set<string>();
     toolSets.forEach(s => s.allowedTools.forEach(t => union.add(t)));
     return [...union];
+  },
+
+  /**
+   * Resolve the model to use based on the three-level priority:
+   *   skill_override > user_override > default_config
+   * Returns undefined if no skill override is active (use default).
+   */
+  getActiveModelOverride(): string | undefined {
+    const { skills, activeSkills } = get();
+    const active = skills.filter(s => activeSkills.includes(s.id) && s.model);
+    // First active skill with a model override wins (sorted by priority)
+    return active.length > 0 ? active[0].model : undefined;
   },
 
   isSkillActive(skillId) {

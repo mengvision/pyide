@@ -94,8 +94,11 @@ export class ChatEngine {
     onError: (error: Error) => void,
     signal?: AbortSignal,
     baseSystemPrompt?: string,  // Optional base system prompt
+    modelOverride?: string,     // Model override from active skill (priority: skill > user > default)
   ): Promise<void> {
-    const { baseUrl, apiKey, modelId } = this.config;
+    // Resolve model: skill_override > config default
+    const modelId = modelOverride || this.config.modelId;
+    const { baseUrl, apiKey } = this.config;
     const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     // Build enhanced messages with system prompt

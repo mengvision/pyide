@@ -1,4 +1,4 @@
-import { checkAutoTriggers, checkErrorAutoTrigger } from '../services/SkillService/conditionalTrigger';
+import { checkAutoTriggers, checkErrorAutoTrigger } from '../services/SkillService/autoTrigger';
 
 export interface RoutedOutput {
   type: 'text' | 'dataframe' | 'chart' | 'error' | 'warning' | 'info';

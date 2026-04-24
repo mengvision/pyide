@@ -4,7 +4,7 @@
 
 The AI Chat is not just a chatbot — it's an **AI assistant that can directly operate the Python kernel**. It can execute code, inspect variables, and manipulate the workspace on behalf of the user.
 
-### Three Interaction Modes
+### Two Interaction Modes
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -16,24 +16,16 @@ The AI Chat is not just a chatbot — it's an **AI assistant that can directly o
 │  - AI responds with suggestions, explanations, code blocks                  │
 │  - Code blocks have action buttons: [Execute] [Insert Cell] [Copy]         │
 │  - User clicks to execute                                                   │
+│  - MCP tools are NOT injected — AI cannot call external tools               │
 │  - Use case: Learning, exploration, consultation                            │
 │                                                                              │
-│  Mode 2: Assist (semi-auto)                                                 │
-│  ──────────────────────────────                                              │
-│  - AI can execute read-only operations automatically:                       │
-│    - `inspect_variable`                                                     │
-│    - `list_variables`                                                       │
-│    - `get_variable_sample`                                                  │
-│  - Write operations require confirmation:                                  │
-│    - `execute_python_code` → User sees preview, clicks [Confirm]            │
-│  - Use case: Data exploration, debugging                                   │
-│                                                                              │
-│  Mode 3: Agent (auto-execute)                                               │
+│  Mode 2: Agent (auto-execute)                                               │
 │  ───────────────────────────────                                            │
 │  - AI has full autonomy to execute any code                                 │
-│  - No confirmation needed                                                   │
-│  - Still respects allowed_tools / denied_tools from active Skill            │
-│  - Use case: Automated analysis, batch processing, overnight jobs          │
+│  - MCP tools are injected — AI can call external tools                      │
+│  - Tool execution with user confirmation for sensitive operations           │
+│  - Still respects allowed_tools from active Skill                           │
+│  - Use case: Automated analysis, batch processing, data pipelines           │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -128,13 +120,13 @@ These are tools the AI can call to interact with the kernel:
 
 | Tool | Description | Parameters | Mode Restriction |
 |------|-------------|------------|------------------|
-| `execute_python_code` | Execute Python code | `{ code: string }` | Assist (confirm), Agent (auto) |
-| `inspect_variable` | Get variable metadata | `{ name: string }` | All modes (auto) |
-| `list_variables` | List all variables | `{}` | All modes (auto) |
-| `get_variable_sample` | Sample DataFrame rows | `{ name: string, rows?: number }` | All modes (auto) |
-| `install_package` | Install via uv pip | `{ package: string }` | Assist (confirm), Agent (auto) |
-| `read_file` | Read file contents | `{ path: string }` | All modes (auto) |
-| `write_file` | Write file contents | `{ path: string, content: string }` | Assist (confirm), Agent (auto) |
+| `execute_python_code` | Execute Python code | `{ code: string }` | Agent (auto) |
+| `inspect_variable` | Get variable metadata | `{ name: string }` | Agent (auto) |
+| `list_variables` | List all variables | `{}` | Agent (auto) |
+| `get_variable_sample` | Sample DataFrame rows | `{ name: string, rows?: number }` | Agent (auto) |
+| `install_package` | Install via uv pip | `{ package: string }` | Agent (auto) |
+| `read_file` | Read file contents | `{ path: string }` | Agent (auto) |
+| `write_file` | Write file contents | `{ path: string, content: string }` | Agent (auto) |
 
 ### Tool Call Flow
 
@@ -145,9 +137,7 @@ AI: "I'll load your CSV file and show the first few rows."
               │
               ├─── Mode: Chat → Show preview, user clicks [Execute]
               │
-              ├─── Mode: Assist → Show preview, user clicks [Confirm]
-              │
-              └─── Mode: Agent → Execute immediately, return result
+              └─── Mode: Agent → Execute with confirmation, return result
 ```
 
 ---
@@ -429,9 +419,8 @@ When an AI response contains tool call patterns, ChatEngine parses and executes 
 1. ChatEngine response handler scans AI output for [TOOL_CALL: ...] patterns
 2. Parse server name, tool name, and JSON arguments
 3. Check tool permissions (always_allow / ask / always_deny)
-4. In Assist mode: show confirmation dialog before execution
-5. In Agent mode: execute automatically (respecting denied_tools list)
-6. Execute via MCPClient.callTool(server, tool, args)
+4. In Agent mode: execute with confirmation (respecting allowed_tools from active Skill)
+5. Execute via MCPClient.callTool(server, tool, args)
 7. Format result and inject back into conversation as tool_result message
 8. AI continues with tool result context
 
@@ -545,8 +534,7 @@ const workerMessages = [
 
 **AI Mode Switching:**
 - Chat mode (default): AI suggests code, user clicks to execute
-- Assist mode: Read-only ops automatic, write ops require confirmation
-- Agent mode: Full autonomy, respects allowed_tools/denied_tools
+- Agent mode: Full autonomy, executes tools with confirmation, respects allowed_tools/denied_tools
 - Mode selector in chat UI header
 
 **Agent Types:**

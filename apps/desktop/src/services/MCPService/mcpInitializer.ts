@@ -8,6 +8,7 @@ import type { PlatformService } from '@pyide/platform';
 import { mcpClient } from './client';
 import { loadMCPConfig } from './configLoader';
 import { useMCPStore } from '../../stores/mcpStore';
+import { discoverMCPSkills } from '../SkillService/mcpSkillDiscovery';
 
 let initialized = false;
 
@@ -39,6 +40,16 @@ export async function initializeMCPConnections(platform: PlatformService): Promi
     const connections = mcpClient.getAllConnections();
     store.setConnections(connections);
     console.log('[MCP Init] All connections:', connections);
+
+    // Discover skills from MCP servers that support prompts
+    try {
+      const discovered = await discoverMCPSkills();
+      if (discovered.length > 0) {
+        console.log(`[MCP Init] Discovered ${discovered.length} MCP skills:`, discovered);
+      }
+    } catch (error) {
+      console.warn('[MCP Init] MCP skill discovery failed:', error);
+    }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[MCP Init] Failed to initialize MCP:', error);

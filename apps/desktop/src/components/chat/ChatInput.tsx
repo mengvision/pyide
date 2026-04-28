@@ -8,6 +8,8 @@ interface ChatInputProps {
   onStop: () => void;
   isStreaming: boolean;
   disabled?: boolean;
+  /** Optional: called on every keystroke with the current textarea value */
+  onInputChange?: (text: string) => void;
 }
 
 export interface ChatInputHandle {
@@ -21,7 +23,7 @@ interface SlashState {
 }
 
 export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
-  ({ onSend, onStop, isStreaming, disabled = false }, ref) => {
+  ({ onSend, onStop, isStreaming, disabled = false, onInputChange }, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [slash, setSlash] = useState<SlashState>({ active: false, query: '', selectedIndex: 0 });
 
@@ -71,6 +73,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
 
     const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
       resize();
+      onInputChange?.(e.target.value);
       const newSlash = detectSlash();
       setSlash(prev => ({
         active: newSlash.active,
@@ -115,8 +118,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       el.value = '';
       el.style.height = 'auto';
       setSlash({ active: false, query: '', selectedIndex: 0 });
+      onInputChange?.('');
       onSend(value);
-    }, [isStreaming, onSend]);
+    }, [isStreaming, onSend, onInputChange]);
 
     const handleKeyDown = useCallback(
       (e: KeyboardEvent<HTMLTextAreaElement>) => {

@@ -80,7 +80,7 @@ export interface PlatformService {
     /** Return the absolute path to the user skills directory, creating it if needed. */
     getUserSkillsDir(baseDir: string): Promise<string>;
     /** Install a skill from a zip archive into ~/.pyide/skills/user/. */
-    installFromZip(basePath: string, zipBytes: number[], fileName: string): Promise<InstallSkillResult>;
+    installFromZip(basePath: string, zipBytes: number[], fileName: string, overwrite?: boolean): Promise<InstallSkillResult>;
   };
 
   // ── MCP Server Integration ──────────────────────────────────────────────────

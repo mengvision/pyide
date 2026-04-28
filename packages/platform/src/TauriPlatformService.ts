@@ -149,11 +149,13 @@ export class TauriPlatformService implements PlatformService {
       basePath: string,
       zipBytes: number[],
       fileName: string,
+      overwrite?: boolean,
     ): Promise<InstallSkillResult> =>
       invoke<InstallSkillResult>('install_skill_from_zip', {
         basePath,
         zipBytes,
         fileName,
+        overwrite: overwrite ?? false,
       }),
   };
 

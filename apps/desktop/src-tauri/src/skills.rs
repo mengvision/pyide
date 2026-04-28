@@ -4,6 +4,55 @@ use std::io::Cursor;
 use std::path::PathBuf;
 use zip::ZipArchive;
 
+// ── Typed install errors ──────────────────────────────────────────
+
+/// Structured error type returned by install_skill_from_zip.
+/// The `error_type` field lets the frontend branch on the specific failure.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SkillInstallError {
+    /// Machine-readable variant: invalid_zip | missing_skill_md | permission_denied | already_exists
+    pub error_type: String,
+    /// Human-readable description
+    pub message: String,
+}
+
+impl SkillInstallError {
+    fn invalid_zip(detail: &str) -> Self {
+        Self {
+            error_type: "invalid_zip".to_string(),
+            message: format!("The file is not a valid ZIP archive: {}", detail),
+        }
+    }
+
+    fn missing_skill_md() -> Self {
+        Self {
+            error_type: "missing_skill_md".to_string(),
+            message: "ZIP must contain a SKILL.md file (inside a directory or at root level)".to_string(),
+        }
+    }
+
+    fn permission_denied(detail: &str) -> Self {
+        Self {
+            error_type: "permission_denied".to_string(),
+            message: format!("Cannot write to skill directory. Check permissions: {}", detail),
+        }
+    }
+
+    fn already_exists(skill_name: &str) -> Self {
+        Self {
+            error_type: "already_exists".to_string(),
+            message: format!("Skill \"{}\" is already installed", skill_name),
+        }
+    }
+
+    /// Serialize to a JSON string so Tauri can return it as a String error.
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| {
+            format!("{{\"error_type\":\"{}\",\"message\":\"{}\"}}", self.error_type, self.message)
+        })
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SkillInfo {
     pub name: String,
@@ -225,15 +274,20 @@ pub struct InstallSkillResult {
 ///   - A root-level `<name>.md` file
 ///
 /// The zip bytes are passed from the frontend (Tauri base64-encodes Vec<u8>).
+/// When `overwrite` is false and the skill already exists, returns an `already_exists` error.
 #[tauri::command]
 pub async fn install_skill_from_zip(
     base_path: String,
     zip_bytes: Vec<u8>,
     file_name: String,
+    overwrite: Option<bool>,
 ) -> Result<InstallSkillResult, String> {
+    let allow_overwrite = overwrite.unwrap_or(false);
+
     // Ensure user skills directory exists
     let user_dir = PathBuf::from(&base_path).join(".pyide/skills/user");
-    fs::create_dir_all(&user_dir).map_err(|e| format!("Failed to create skills directory: {}", e))?;
+    fs::create_dir_all(&user_dir)
+        .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
 
     // Derive skill name from file name (strip .zip extension)
     let stem = PathBuf::from(&file_name)
@@ -243,7 +297,7 @@ pub async fn install_skill_from_zip(
 
     let reader = Cursor::new(zip_bytes);
     let mut archive = ZipArchive::new(reader)
-        .map_err(|e| format!("Failed to read zip archive: {}", e))?;
+        .map_err(|e| SkillInstallError::invalid_zip(&e.to_string()).to_json())?;
 
     // Strategy 1: Check if there's a single root directory containing SKILL.md
     let mut skill_name = stem.clone();
@@ -287,29 +341,33 @@ pub async fn install_skill_from_zip(
             }
         });
         if !has_root_md {
-            return Err("Invalid skill zip: must contain SKILL.md inside a directory or a root-level .md file".to_string());
+            return Err(SkillInstallError::missing_skill_md().to_json());
         }
         target_dir = user_dir.join(&skill_name);
     }
 
-    // Create target directory (remove existing if present)
+    // Check for already_exists before overwriting
     if target_dir.exists() {
+        if !allow_overwrite {
+            return Err(SkillInstallError::already_exists(&skill_name).to_json());
+        }
+        // User confirmed overwrite — remove existing directory
         fs::remove_dir_all(&target_dir)
-            .map_err(|e| format!("Failed to remove existing skill directory: {}", e))?;
+            .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
     }
     fs::create_dir_all(&target_dir)
-        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+        .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
 
     // Extract files
     let mut support_files = Vec::new();
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
-            .map_err(|e| format!("Failed to read zip entry: {}", e))?;
+            .map_err(|e| SkillInstallError::invalid_zip(&e.to_string()).to_json())?;
 
         let outpath = if use_root_dir {
             // Strip the root directory prefix
             let name = file.enclosed_name()
-                .ok_or_else(|| "Invalid file path in zip".to_string())?
+                .ok_or_else(|| SkillInstallError::invalid_zip("invalid file path in zip entry").to_json())?
                 .to_path_buf();
             let parts: Vec<std::path::Component<'_>> = name.components().collect();
             if parts.is_empty() { continue; }
@@ -319,7 +377,7 @@ pub async fn install_skill_from_zip(
             target_dir.join(rest)
         } else {
             let name = file.enclosed_name()
-                .ok_or_else(|| "Invalid file path in zip".to_string())?
+                .ok_or_else(|| SkillInstallError::invalid_zip("invalid file path in zip entry").to_json())?
                 .to_path_buf();
             if name.as_os_str().is_empty() { continue; }
             target_dir.join(name.file_name().unwrap_or(name.as_os_str()))
@@ -329,7 +387,7 @@ pub async fn install_skill_from_zip(
         if let Some(parent) = outpath.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+                    .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
             }
         }
 
@@ -338,9 +396,9 @@ pub async fn install_skill_from_zip(
         }
 
         let mut outfile = fs::File::create(&outpath)
-            .map_err(|e| format!("Failed to create file: {}", e))?;
+            .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
         std::io::copy(&mut file, &mut outfile)
-            .map_err(|e| format!("Failed to write file: {}", e))?;
+            .map_err(|e| SkillInstallError::permission_denied(&e.to_string()).to_json())?;
 
         // Track support files (relative to target_dir, excluding SKILL.md)
         let relative = outpath.strip_prefix(&target_dir)

@@ -9,13 +9,15 @@
  * imported from the desktop source via the @desktop alias.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useChatStore } from '@desktop/stores/chatStore';
 import { useSettingsStore } from '@desktop/stores/settingsStore';
 import { ChatMessage } from '@desktop/components/chat/ChatMessage';
 import { ChatInput } from '@desktop/components/chat/ChatInput';
 import type { ChatInputHandle } from '@desktop/components/chat/ChatInput';
 import type { ChatMode } from '@desktop/stores/chatStore';
+import { useSkillStore } from '@desktop/services/SkillService';
+import { useSkillAutocomplete } from '@desktop/hooks/useSkillAutocomplete';
 import { useWebChat } from '../hooks/useWebChat';
 import styles from '@desktop/components/chat/AIChatPanel.module.css';
 
@@ -42,6 +44,33 @@ export function WebChatPanel({
   memoriesContext,
   mcpToolsContext,
 }: WebChatPanelProps) {
+  // ── Drag-and-drop state for skill zip installation ──────────────────────────
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // ── Install feedback state (visible inline, not filtered like system messages) ─
+  const [installFeedback, setInstallFeedback] = useState<{
+    type: 'installing' | 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const installTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showInstallFeedback = useCallback(
+    (feedback: typeof installFeedback) => {
+      setInstallFeedback(feedback);
+      if (installTimerRef.current) clearTimeout(installTimerRef.current);
+      if (feedback && feedback.type !== 'installing') {
+        installTimerRef.current = setTimeout(() => setInstallFeedback(null), 5000);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (installTimerRef.current) clearTimeout(installTimerRef.current);
+    };
+  }, []);
   const {
     sendMessage,
     stopStreaming,
@@ -55,6 +84,42 @@ export function WebChatPanel({
 
   const totalTokenUsage = useChatStore((s) => s.totalTokenUsage);
   const serverUrl = useSettingsStore((s) => s.serverUrl);
+
+  // ── Slash autocomplete / skill activation ───────────────────────────────────
+  const skillAutocomplete = useSkillAutocomplete();
+  const deactivateSkill = useSkillStore((s) => s.deactivateSkill);
+
+  const handleSend = useCallback(
+    async (rawText: string) => {
+      const slashMatch = rawText.match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
+      if (slashMatch) {
+        const cmdName = slashMatch[1].toLowerCase();
+        const rest = (slashMatch[2] ?? '').trim();
+
+        if (cmdName === 'clear') {
+          const { activeSkills } = useSkillStore.getState();
+          [...activeSkills].forEach((id) => deactivateSkill(id));
+          skillAutocomplete.reset();
+          return;
+        }
+
+        const { skills, activateSkill } = useSkillStore.getState();
+        const matched = skills.find((s) => s.name.toLowerCase() === cmdName);
+        if (matched) {
+          activateSkill(matched.id);
+          skillAutocomplete.reset();
+          if (rest) {
+            await sendMessage(rest);
+          }
+          return;
+        }
+      }
+
+      skillAutocomplete.reset();
+      await sendMessage(rawText);
+    },
+    [sendMessage, skillAutocomplete, deactivateSkill],
+  );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -73,6 +138,78 @@ export function WebChatPanel({
     window.addEventListener('pyide:focus-chat-input', focusInput);
     return () => window.removeEventListener('pyide:focus-chat-input', focusInput);
   }, [focusInput]);
+
+  // ── Drag-and-drop handlers ───────────────────────────────────────────────────
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      dragCounterRef.current = 0;
+
+      const files = Array.from(e.dataTransfer.files);
+      const zipFile = files.find(
+        (f) => f.name.endsWith('.zip') || f.type === 'application/zip',
+      );
+
+      if (!zipFile) {
+        showInstallFeedback({
+          type: 'error',
+          message: 'No .zip file found. Drop a .zip file to install a skill.',
+        });
+        return;
+      }
+
+      showInstallFeedback({
+        type: 'installing',
+        message: `Installing skill from ${zipFile.name}…`,
+      });
+
+      try {
+        const result = await useSkillStore.getState().installFromZip(zipFile);
+        if (result.success) {
+          showInstallFeedback({
+            type: 'success',
+            message: `✅ Skill "${result.skillName}" installed! Use /${result.skillName} in chat to activate.`,
+          });
+        } else {
+          showInstallFeedback({
+            type: 'error',
+            message: `❌ Failed: ${result.error || 'Unknown error'}`,
+          });
+        }
+      } catch (err) {
+        showInstallFeedback({
+          type: 'error',
+          message: `❌ Installation failed: ${(err as Error).message}.`,
+        });
+      }
+    },
+    [showInstallFeedback],
+  );
 
   if (!hasEngine) {
     return (
@@ -94,7 +231,13 @@ export function WebChatPanel({
   }
 
   return (
-    <div className={styles.panel}>
+    <div
+      className={styles.panel}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.title}>AI CHAT</span>
@@ -147,15 +290,69 @@ export function WebChatPanel({
             <span className={styles.dot} />
           </div>
         )}
+        {/* Install feedback banner (visible inline, not affected by system-message filter) */}
+        {installFeedback && (
+          <div className={`${styles.installBanner} ${styles[`installBanner_${installFeedback.type}`]}`}>
+            <span className={styles.installBannerIcon}>
+              {installFeedback.type === 'installing' ? '⏳' : installFeedback.type === 'success' ? '✅' : '❌'}
+            </span>
+            <span className={styles.installBannerMessage}>{installFeedback.message}</span>
+            {installFeedback.type !== 'installing' && (
+              <button
+                className={styles.installBannerClose}
+                onClick={() => setInstallFeedback(null)}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
+
+        {/* Drag-and-drop overlay */}
+        {isDragging && (
+          <div className={styles.dragOverlay}>
+            <div className={styles.dragOverlayContent}>
+              <span className={styles.dragOverlayIcon}>📦</span>
+              <span className={styles.dragOverlayText}>
+                Drop .zip file to install skill
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Active skill badges (from slash-command activation) */}
+      {skillAutocomplete.activatedSkillName && (
+        <div className={styles.activatedSkillBadgeRow}>
+          <span className={styles.activatedSkillBadge}>
+            <span className={styles.activatedSkillIcon}>🔧</span>
+            <span className={styles.activatedSkillLabel}>{skillAutocomplete.activatedSkillName} active</span>
+            <button
+              className={styles.activatedSkillClose}
+              title={`Deactivate ${skillAutocomplete.activatedSkillName}`}
+              onClick={() => {
+                const skill = useSkillStore.getState().skills.find(
+                  (s) => s.name === skillAutocomplete.activatedSkillName,
+                );
+                if (skill) useSkillStore.getState().deactivateSkill(skill.id);
+                skillAutocomplete.reset();
+              }}
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Input */}
       <ChatInput
         ref={chatInputRef}
-        onSend={sendMessage}
+        onSend={handleSend}
         onStop={stopStreaming}
         isStreaming={isStreaming}
+        onInputChange={skillAutocomplete.handleInputChange}
       />
 
       {/* Footer: token usage */}

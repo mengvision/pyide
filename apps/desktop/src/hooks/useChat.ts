@@ -3,11 +3,14 @@ import { useChatStore } from '../stores/chatStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useKernelStore } from '../stores/kernelStore';
 import { useMCPStore } from '../stores/mcpStore';
+import { useUiStore } from '../stores/uiStore';
 import { useKernelContext } from '../contexts/KernelContext';
 import { ChatEngine } from '../services/ChatEngine';
 import { buildSystemPrompt } from '../services/chatContext';
 import { mcpChatIntegration } from '../services/MCPService/chatIntegration';
 import { agentManager } from '../services/AgentManager';
+import { queryRelevantMemories, formatMemoriesForPrompt } from '../services/MemoryService/query';
+import { usePlatform } from '@pyide/platform';
 import type { ToolCall } from '../utils/toolCallParser';
 
 /** Callback used by the ToolConfirmDialog to ask the user before running a tool */
@@ -26,6 +29,9 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
   const aiConfig = useSettingsStore((s) => s.aiConfig);
   const variables = useKernelStore((s) => s.variables);
   const connectionStatus = useKernelStore((s) => s.connectionStatus);
+  const mcpReady = useMCPStore((s) => s.mcpReady);
+  const workspacePath = useUiStore((s) => s.workspacePath);
+  const platform = usePlatform();
 
   // Try to get ChatEngine from context (preferred), otherwise create local instance
   let contextChatEngine: ChatEngine | null = null;
@@ -81,6 +87,17 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
     async (content: string) => {
       if (!engineRef.current) return;
 
+      // In agent mode, ensure MCP tools have been discovered before proceeding.
+      // This prevents sending a message with an empty tools context when the
+      // initializer hasn't finished yet.
+      if (chatMode === 'agent' && !mcpReady) {
+        chatStore.addMessage({ role: 'user', content });
+        chatStore.addMessage({
+          role: 'assistant',
+          content: '⏳ MCP tools are still loading. Please wait a moment and try again.',
+        });
+        return;
+      }
       // Intercept slash commands: /skillname [args]
       // Activate the matching skill before sending to AI
       const slashMatch = content.match(/^\/(\S+)(?:\s+(.*))?$/s);
@@ -108,6 +125,25 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
       //   1. Kernel state (variables, connection status)
       //   2. MCP tools description (Agent mode only), filtered by active skill's allowedTools
       const baseSystemPrompt = buildSystemPrompt({ variables, connectionStatus });
+
+      // ── Per-message memory retrieval ──────────────────────────────────────────
+      // Query the most relevant memories for this specific message and inject
+      // them into the ChatEngine context so buildSystemPrompt() includes them.
+      try {
+        const relevantMemories = await queryRelevantMemories(
+          content,
+          platform,
+          workspacePath ?? undefined,
+        );
+        if (relevantMemories.length > 0) {
+          const formatted = formatMemoriesForPrompt(relevantMemories);
+          engineRef.current?.setContext({ memories: formatted });
+          console.debug(`[useChat] Injected ${relevantMemories.length} relevant memories into context`);
+        }
+      } catch (memErr) {
+        // Memory retrieval is non-blocking — log and continue
+        console.warn('[useChat] Memory retrieval failed, continuing without memories:', memErr);
+      }
 
       let mcpToolsContext = '';
       let skillModelOverride: string | undefined;
@@ -252,7 +288,7 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chatStore, variables, connectionStatus, chatMode, onConfirm],
+    [chatStore, variables, connectionStatus, chatMode, mcpReady, workspacePath, onConfirm],
   );
 
   const stopStreaming = useCallback(() => {
@@ -270,5 +306,6 @@ export function useChat(onConfirm?: ToolConfirmCallback) {
     chatMode,
     setChatMode,
     hasEngine: !!engineRef.current || !!(aiConfig.baseUrl && aiConfig.apiKey && aiConfig.modelId),
+    mcpReady,
   };
 }

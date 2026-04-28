@@ -182,6 +182,7 @@ export class WebPlatformService implements PlatformService {
       _basePath: string,
       _zipBytes: number[],
       _fileName: string,
+      _overwrite?: boolean,
     ): Promise<InstallSkillResult> => {
       throw new Error('Zip skill installation is not supported in web mode');
     },

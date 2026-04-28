@@ -11,7 +11,7 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export type ChatMode = 'chat' | 'agent';
+export type ChatMode = 'chat' | 'assist' | 'agent';
 
 interface ChatState {
   messages: ChatMessage[];

@@ -23,6 +23,13 @@ interface MCPState {
   isInitialized: boolean;
   initError: string | null;
 
+  /**
+   * True after all configured MCP servers have attempted connection
+   * (whether they succeeded or failed). Chat in assist/agent modes
+   * should wait for this before fetching tools.
+   */
+  mcpReady: boolean;
+
   // Tool execution state (transient, per-session)
   toolExecutions: ToolExecutionState[];
 
@@ -30,6 +37,7 @@ interface MCPState {
   setConnections: (connections: MCPConnection[]) => void;
   setInitialized: (initialized: boolean) => void;
   setInitError: (error: string | null) => void;
+  setMcpReady: (ready: boolean) => void;
 
   // Tool execution tracking
   setToolExecuting: (execution: ToolExecutionState) => void;
@@ -40,6 +48,7 @@ export const useMCPStore = create<MCPState>((set) => ({
   connections: [],
   isInitialized: false,
   initError: null,
+  mcpReady: false,
   toolExecutions: [],
 
   setConnections: (connections) => set(() => ({ connections })),
@@ -47,6 +56,8 @@ export const useMCPStore = create<MCPState>((set) => ({
   setInitialized: (isInitialized) => set(() => ({ isInitialized })),
 
   setInitError: (initError) => set(() => ({ initError })),
+
+  setMcpReady: (mcpReady) => set(() => ({ mcpReady })),
 
   setToolExecuting: (execution) =>
     set((state) => ({

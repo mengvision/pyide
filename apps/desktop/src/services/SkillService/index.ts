@@ -91,8 +91,12 @@ interface SkillStore {
   isSkillActive: (skillId: string) => boolean;
   getSkillById: (skillId: string) => LoadedSkill | undefined;
   installFromClawHub: (skillName: string) => Promise<boolean>;
+  installFromUrl: (url: string) => Promise<{ success: boolean; error?: string; skillName?: string }>;
   uninstallClawHubSkill: (skillName: string) => Promise<boolean>;
-  installFromZip: (file: File) => Promise<{ success: boolean; error?: string; skillName?: string }>;
+  installFromZip: (
+    file: File,
+    options?: { overwrite?: boolean },
+  ) => Promise<{ success: boolean; error?: string; errorType?: string; skillName?: string }>;
 }
 
 export const useSkillStore = create<SkillStore>((set, get) => ({
@@ -318,6 +322,86 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
     return get().skills.find(s => s.id === skillId);
   },
 
+  async installFromUrl(url: string): Promise<{ success: boolean; error?: string; skillName?: string }> {
+    try {
+      if (!_platform) throw new Error('Platform not initialized');
+
+      // Validate URL
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return { success: false, error: 'Invalid URL format' };
+      }
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return { success: false, error: 'Only http:// and https:// URLs are supported' };
+      }
+
+      const pathname = parsedUrl.pathname.toLowerCase();
+      const isZip = pathname.endsWith('.zip');
+      const isMd = pathname.endsWith('.md');
+      if (!isZip && !isMd) {
+        return { success: false, error: 'URL must point to a .md or .zip file' };
+      }
+
+      // Fetch with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal });
+      } catch (fetchErr) {
+        const msg = fetchErr instanceof Error && fetchErr.name === 'AbortError'
+          ? 'Request timed out (30s)'
+          : `Network error: ${(fetchErr as Error).message}`;
+        return { success: false, error: msg };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `Failed to download: HTTP ${response.status} ${response.statusText}`,
+        };
+      }
+
+      if (isZip) {
+        // Delegate to ZIP install flow
+        const arrayBuffer = await response.arrayBuffer();
+        // Derive a filename from the URL path
+        const filename = parsedUrl.pathname.split('/').pop() || 'skill.zip';
+        const file = new File([arrayBuffer], filename, { type: 'application/zip' });
+        const result = await get().installFromZip(file);
+        return result;
+      } else {
+        // .md file — save directly to ~/.pyide/skills/user/<name>/SKILL.md
+        const content = await response.text();
+        if (!content.trim()) {
+          return { success: false, error: 'Downloaded file is empty' };
+        }
+
+        // Derive skill name from URL filename (strip .md)
+        const rawFilename = parsedUrl.pathname.split('/').pop() || 'skill.md';
+        const skillName = rawFilename.replace(/\.md$/i, '').replace(/[^a-zA-Z0-9_-]/g, '-') || 'user-skill';
+
+        const homeDir = await _platform.file.getHomeDir();
+        const skillDir = `${homeDir}/.pyide/skills/user/${skillName}`;
+        const skillPath = `${skillDir}/SKILL.md`;
+
+        // Ensure directory exists and write file
+        await _platform.file.write(skillPath, content);
+
+        // Reload skill list
+        await get().loadSkills();
+        return { success: true, skillName };
+      }
+    } catch (error) {
+      console.error('installFromUrl error:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  },
+
   async installFromClawHub(skillName: string): Promise<boolean> {
     try {
       if (!_platform) throw new Error('Platform not initialized');
@@ -371,7 +455,10 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
     }
   },
 
-  async installFromZip(file: File): Promise<{ success: boolean; error?: string; skillName?: string }> {
+  async installFromZip(
+    file: File,
+    options?: { overwrite?: boolean },
+  ): Promise<{ success: boolean; error?: string; errorType?: string; skillName?: string }> {
     try {
       if (!_platform) throw new Error('Platform not initialized');
 
@@ -379,15 +466,51 @@ export const useSkillStore = create<SkillStore>((set, get) => ({
       const zipBytes = Array.from(new Uint8Array(buffer));
       const homeDir = await _platform.file.getHomeDir();
 
-      const result = await _platform.skills.installFromZip(homeDir, zipBytes, file.name);
+      const result = await _platform.skills.installFromZip(
+        homeDir,
+        zipBytes,
+        file.name,
+        options?.overwrite ?? false,
+      );
 
       // Reload skill list to pick up the new skill
       await get().loadSkills();
 
       return { success: true, skillName: result.skillName };
     } catch (error) {
-      console.error('installFromZip error:', error);
-      return { success: false, error: (error as Error).message };
+      const raw = (error as Error).message ?? String(error);
+
+      // Try to parse a typed error JSON from Rust
+      let errorType: string | undefined;
+      let errorMessage = raw;
+      try {
+        const parsed = JSON.parse(raw) as { error_type?: string; message?: string };
+        if (parsed.error_type) {
+          errorType = parsed.error_type;
+          // Map to user-friendly messages
+          switch (parsed.error_type) {
+            case 'invalid_zip':
+              errorMessage = 'The file is not a valid ZIP archive';
+              break;
+            case 'missing_skill_md':
+              errorMessage = 'ZIP must contain a SKILL.md file';
+              break;
+            case 'permission_denied':
+              errorMessage = 'Cannot write to skill directory. Check permissions.';
+              break;
+            case 'already_exists':
+              errorMessage = 'Skill already installed. Do you want to overwrite?';
+              break;
+            default:
+              errorMessage = parsed.message ?? raw;
+          }
+        }
+      } catch {
+        // Not JSON — use raw message as-is
+      }
+
+      console.error('installFromZip error:', raw);
+      return { success: false, error: errorMessage, errorType };
     }
   },
 }));

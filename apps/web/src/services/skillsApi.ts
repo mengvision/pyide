@@ -94,6 +94,44 @@ export async function installSkill(
 }
 
 /**
+ * Install a skill from a URL (.md or .zip).
+ * POST /api/skills/install-url  { url }
+ */
+export async function installSkillFromUrl(
+  serverUrl: string,
+  token: string,
+  url: string,
+): Promise<{ success: boolean; skillName?: string; error?: string }> {
+  const apiUrl = `${serverUrl.replace(/\/$/, '')}/api/skills/install-url`;
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ url }),
+  });
+  return handleResponse<{ success: boolean; skillName?: string; error?: string }>(res, `installSkillFromUrl(${url})`);
+}
+
+/**
+ * Install a skill from a ZIP file upload.
+ * POST /api/skills/install-zip  (multipart/form-data)
+ */
+export async function installSkillFromZip(
+  serverUrl: string,
+  token: string,
+  file: File,
+): Promise<{ success: boolean; skillName?: string; error?: string }> {
+  const apiUrl = `${serverUrl.replace(/\/$/, '')}/api/skills/install-zip`;
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  return handleResponse<{ success: boolean; skillName?: string; error?: string }>(res, `installSkillFromZip(${file.name})`);
+}
+
+/**
  * Uninstall a skill (ClawHub-installed or user-created).
  * DELETE /api/skills/{id}
  */

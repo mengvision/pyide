@@ -9,6 +9,8 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
 import { ToolConfirmCard } from './ToolConfirmDialog';
 import { setMCPPermission } from '../../services/MCPService/permissions';
+import { useSkillStore } from '../../services/SkillService';
+import { useSkillAutocomplete } from '../../hooks/useSkillAutocomplete';
 import type { ToolCall } from '../../utils/toolCallParser';
 import type { ChatMode } from '../../stores/chatStore';
 import styles from './AIChatPanel.module.css';
@@ -22,6 +24,37 @@ export function AIChatPanel() {
   // ── Confirmation dialog state ───────────────────────────────────────────────
   const [pendingCall, setPendingCall] = useState<ToolCall | null>(null);
   const resolveRef = useRef<((allowed: boolean) => void) | null>(null);
+
+  // ── Drag-and-drop state for skill zip installation ──────────────────────────
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // Pending overwrite: file to retry + skill name for display
+  const [overwritePending, setOverwritePending] = useState<{ file: File; skillName: string } | null>(null);
+
+  // ── Install feedback state (visible inline, not filtered like system messages) ─
+  const [installFeedback, setInstallFeedback] = useState<{
+    type: 'installing' | 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const installTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showInstallFeedback = useCallback(
+    (feedback: typeof installFeedback) => {
+      setInstallFeedback(feedback);
+      if (installTimerRef.current) clearTimeout(installTimerRef.current);
+      if (feedback && feedback.type !== 'installing') {
+        installTimerRef.current = setTimeout(() => setInstallFeedback(null), 5000);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (installTimerRef.current) clearTimeout(installTimerRef.current);
+    };
+  }, []);
 
   /**
    * Called by useChat when a tool needs user approval (Agent mode).
@@ -65,6 +98,54 @@ export function AIChatPanel() {
     chatMode,
     setChatMode,
   } = useChat(onConfirm);
+
+  // ── Slash autocomplete / skill activation ───────────────────────────────────
+  const skillAutocomplete = useSkillAutocomplete();
+  const deactivateSkill = useSkillStore((s) => s.deactivateSkill);
+
+  /**
+   * Parses the raw message for a `/skillname` prefix, activates the skill,
+   * strips the prefix, then forwards the cleaned text to the AI.
+   */
+  const handleSend = useCallback(
+    async (rawText: string) => {
+      // Detect /command at start of message
+      const slashMatch = rawText.match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
+      if (slashMatch) {
+        const cmdName = slashMatch[1].toLowerCase();
+        const rest = (slashMatch[2] ?? '').trim();
+
+        if (cmdName === 'clear') {
+          // Deactivate all active skills
+          const { activeSkills } = useSkillStore.getState();
+          [...activeSkills].forEach((id) => deactivateSkill(id));
+          skillAutocomplete.reset();
+          // Don't send the message — it was a command only
+          return;
+        }
+
+        // Find matching skill
+        const { skills, activateSkill } = useSkillStore.getState();
+        const matched = skills.find(
+          (s) => s.name.toLowerCase() === cmdName,
+        );
+        if (matched) {
+          activateSkill(matched.id);
+          skillAutocomplete.reset();
+          // Send the remaining text (or nothing if it was just the command)
+          if (rest) {
+            await sendMessage(rest);
+          }
+          return;
+        }
+      }
+
+      // Reset autocomplete on send
+      skillAutocomplete.reset();
+      await sendMessage(rawText);
+    },
+    [sendMessage, skillAutocomplete, deactivateSkill],
+  );
 
   // Agent & token usage from store (kept in sync by useChat → AgentManager)
   const agents = useChatStore((s) => s.agents);
@@ -131,8 +212,109 @@ export function AIChatPanel() {
     );
   }
 
+  // ── Drag-and-drop handlers ───────────────────────────────────────────────────
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      dragCounterRef.current = 0;
+
+      const files = Array.from(e.dataTransfer.files);
+      const zipFile = files.find(
+        (f) => f.name.endsWith('.zip') || f.type === 'application/zip',
+      );
+
+      if (!zipFile) {
+        showInstallFeedback({
+          type: 'error',
+          message: 'No .zip file found. Drop a .zip file to install a skill.',
+        });
+        return;
+      }
+
+      showInstallFeedback({
+        type: 'installing',
+        message: `Installing skill from ${zipFile.name}…`,
+      });
+
+      const result = await useSkillStore.getState().installFromZip(zipFile);
+
+      if (result.success) {
+        showInstallFeedback({
+          type: 'success',
+          message: `\u2705 Skill "${result.skillName}" installed! Use /${result.skillName} in chat to activate.`,
+        });
+      } else if (result.errorType === 'already_exists') {
+        // Show inline overwrite confirmation instead of an error
+        const skillName = zipFile.name.replace(/\.zip$/i, '');
+        showInstallFeedback(null);
+        setOverwritePending({ file: zipFile, skillName });
+      } else {
+        showInstallFeedback({
+          type: 'error',
+          message: `\u274c Failed: ${result.error || 'Unknown error'}`,
+        });
+      }
+    },
+    [showInstallFeedback],
+  );
+
+  // ── Overwrite confirm handlers ──────────────────────────────────
+  const handleOverwriteConfirm = useCallback(async () => {
+    if (!overwritePending) return;
+    const { file, skillName } = overwritePending;
+    setOverwritePending(null);
+    showInstallFeedback({ type: 'installing', message: `Overwriting "${skillName}"\u2026` });
+    const result = await useSkillStore.getState().installFromZip(file, { overwrite: true });
+    if (result.success) {
+      showInstallFeedback({
+        type: 'success',
+        message: `\u2705 Skill "${result.skillName}" overwritten successfully!`,
+      });
+    } else {
+      showInstallFeedback({
+        type: 'error',
+        message: `\u274c Failed to overwrite: ${result.error || 'Unknown error'}`,
+      });
+    }
+  }, [overwritePending, showInstallFeedback]);
+
+  const handleOverwriteCancel = useCallback(() => {
+    setOverwritePending(null);
+  }, []);
+
   return (
-    <div className={styles.panel}>
+    <div
+      className={styles.panel}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.title}>AI CHAT</span>
@@ -214,15 +396,90 @@ export function AIChatPanel() {
           onAlwaysAllow={handleAlwaysAllow}
           onDeny={handleDeny}
         />
+        {/* Install feedback banner (visible inline, not affected by system-message filter) */}
+        {installFeedback && (
+          <div className={`${styles.installBanner} ${styles[`installBanner_${installFeedback.type}`]}`}>
+            <span className={styles.installBannerIcon}>
+              {installFeedback.type === 'installing' ? '\u23f3' : installFeedback.type === 'success' ? '\u2705' : '\u274c'}
+            </span>
+            <span className={styles.installBannerMessage}>{installFeedback.message}</span>
+            {installFeedback.type !== 'installing' && (
+              <button
+                className={styles.installBannerClose}
+                onClick={() => setInstallFeedback(null)}
+              >
+                \u2715
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Overwrite confirm card — shown when skill already exists */}
+        {overwritePending && (
+          <div className={styles.overwriteCard}>
+            <div className={styles.overwriteCardTitle}>
+              \u26a0\ufe0f Skill Already Installed
+            </div>
+            <div className={styles.overwriteCardBody}>
+              A skill named <strong>{overwritePending.skillName}</strong> is already installed.
+              Do you want to overwrite it with the new version?
+            </div>
+            <div className={styles.overwriteCardActions}>
+              <button className={styles.overwriteCancelBtn} onClick={handleOverwriteCancel}>
+                Cancel
+              </button>
+              <button className={styles.overwriteConfirmBtn} onClick={handleOverwriteConfirm}>
+                Overwrite
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
+
+        {/* Drag-and-drop overlay */}
+        {isDragging && (
+          <div className={styles.dragOverlay}>
+            <div className={styles.dragOverlayContent}>
+              <span className={styles.dragOverlayIcon}>📦</span>
+              <span className={styles.dragOverlayText}>
+                Drop .zip file to install skill
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Active skill badges (from slash-command activation) */}
+      {skillAutocomplete.activatedSkillName && (
+        <div className={styles.activatedSkillBadgeRow}>
+          <span className={styles.activatedSkillBadge}>
+            <span className={styles.activatedSkillIcon}>🔧</span>
+            <span className={styles.activatedSkillLabel}>{skillAutocomplete.activatedSkillName} active</span>
+            <button
+              className={styles.activatedSkillClose}
+              title={`Deactivate ${skillAutocomplete.activatedSkillName}`}
+              onClick={() => {
+                const skill = useSkillStore.getState().skills.find(
+                  (s) => s.name === skillAutocomplete.activatedSkillName,
+                );
+                if (skill) useSkillStore.getState().deactivateSkill(skill.id);
+                skillAutocomplete.reset();
+              }}
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Input */}
       <ChatInput
         ref={chatInputRef}
-        onSend={sendMessage}
+        onSend={handleSend}
         onStop={stopStreaming}
         isStreaming={isStreaming}
+        onInputChange={skillAutocomplete.handleInputChange}
       />
 
       {/* Footer: token usage + agent status */}

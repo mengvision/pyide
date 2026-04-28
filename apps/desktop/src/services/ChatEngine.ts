@@ -33,7 +33,10 @@ export class ChatEngine {
    * Set chat context (skills, memories, kernel state)
    */
   setContext(context: ChatContext) {
-    this.context = context;
+    this.context = {
+      ...this.context,
+      ...context,
+    };
   }
 
   /**

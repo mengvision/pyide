@@ -35,6 +35,10 @@ export interface UseWebSkillsReturn {
   toggleSkill: (id: string) => Promise<void>;
   /** Install a ClawHub skill by name */
   installSkill: (name: string) => Promise<void>;
+  /** Install a skill from a URL (.md or .zip) */
+  installSkillFromUrl: (url: string) => Promise<{ success: boolean; error?: string; skillName?: string }>;
+  /** Install a skill from a ZIP file */
+  installSkillFromZip: (file: File) => Promise<{ success: boolean; error?: string; skillName?: string }>;
   /** Uninstall a skill by ID */
   uninstallSkill: (id: string) => Promise<void>;
   /** Reload the skill list from the server */
@@ -158,6 +162,46 @@ export function useWebSkills({ token }: UseWebSkillsOptions): UseWebSkillsReturn
     [token, serverUrl, reloadSkills],
   );
 
+  const installSkillFromUrl = useCallback(
+    async (url: string): Promise<{ success: boolean; error?: string; skillName?: string }> => {
+      if (!token) return { success: false, error: 'Not authenticated' };
+      setError(null);
+      try {
+        const result = await skillsApi.installSkillFromUrl(serverUrl, token, url);
+        if (result.success) {
+          await reloadSkills();
+        }
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg);
+        console.error('[useWebSkills] installSkillFromUrl error:', msg);
+        return { success: false, error: msg };
+      }
+    },
+    [token, serverUrl, reloadSkills],
+  );
+
+  const installSkillFromZip = useCallback(
+    async (file: File): Promise<{ success: boolean; error?: string; skillName?: string }> => {
+      if (!token) return { success: false, error: 'Not authenticated' };
+      setError(null);
+      try {
+        const result = await skillsApi.installSkillFromZip(serverUrl, token, file);
+        if (result.success) {
+          await reloadSkills();
+        }
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg);
+        console.error('[useWebSkills] installSkillFromZip error:', msg);
+        return { success: false, error: msg };
+      }
+    },
+    [token, serverUrl, reloadSkills],
+  );
+
   // ── Uninstall ─────────────────────────────────────────────────────────────
 
   const uninstallSkill = useCallback(
@@ -240,6 +284,8 @@ export function useWebSkills({ token }: UseWebSkillsOptions): UseWebSkillsReturn
     error,
     toggleSkill,
     installSkill,
+    installSkillFromUrl,
+    installSkillFromZip,
     uninstallSkill,
     reloadSkills,
     getActiveSkillContent,
